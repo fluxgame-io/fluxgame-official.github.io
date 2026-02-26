@@ -1,211 +1,198 @@
-<!DOCTYPE html>
+       <!DOCTYPE html>
 <html lang="hi">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, orientation=landscape">
     <title>DETECTIVE KABIR: THE CRIME FILES</title>
     <style>
         :root { --neon: #00f2ff; --danger: #ff3e3e; --gold: #ffd700; --bg: #050505; }
         * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         body { background: var(--bg); color: white; font-family: 'Segoe UI', sans-serif; overflow: hidden; }
 
-        /* PHASE 1: LOADER */
+        /* PHASE 1: LOADING PAGE */
         #loader { position: fixed; inset: 0; background: #000; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 9999; }
-        .load-bar { width: 200px; height: 3px; background: #222; margin-top: 15px; overflow: hidden; }
-        .load-progress { width: 0%; height: 100%; background: var(--neon); animation: load 1.5s forwards; }
+        .load-bar { width: 250px; height: 4px; background: #222; margin-top: 20px; overflow: hidden; border-radius: 10px; }
+        .load-progress { width: 0%; height: 100%; background: var(--neon); animation: load 2.5s forwards; }
         @keyframes load { 100% { width: 100%; } }
 
-        /* PHASE 2: HUB */
-        #website-hub { display: none; height: 100vh; overflow-y: auto; text-align: center; }
-        .card-container { display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; padding: 40px 20px; }
-        .card { background: #111; border: 1px solid #333; width: 250px; padding: 25px; border-radius: 15px; cursor: pointer; transition: 0.3s; }
-        .card:hover { border-color: var(--neon); transform: translateY(-5px); }
+        /* PHASE 2: WEBSITE HUB (3 OPTIONS) */
+        #website-hub { display: none; height: 100vh; text-align: center; padding-top: 50px; }
+        .card-container { display: flex; justify-content: center; gap: 30px; padding: 50px; flex-wrap: wrap; }
+        .card { background: #111; border: 1px solid #333; width: 220px; padding: 30px; border-radius: 20px; cursor: pointer; transition: 0.3s; }
+        .card:hover { border-color: var(--neon); transform: translateY(-10px); box-shadow: 0 0 20px rgba(0,242,255,0.2); }
 
-        /* PHASE 3: SELECTION (THUMBNAIL) */
-        #game-selection { display: none; height: 100vh; padding: 40px 20px; text-align: center; }
-        .poster { width: 240px; border: 2px solid #333; border-radius: 15px; overflow: hidden; cursor: pointer; transition: 0.3s; margin: 20px auto; }
-        .poster:hover { border-color: var(--neon); box-shadow: 0 0 20px var(--neon); }
-        .poster img { width: 100%; height: 150px; object-fit: cover; }
+        /* PHASE 3: CRIME FILES (THUMBNAIL) */
+        #game-selection { display: none; height: 100vh; text-align: center; padding: 40px; }
+        .thumbnail { width: 320px; border: 3px solid #333; border-radius: 15px; overflow: hidden; cursor: pointer; margin: 30px auto; transition: 0.4s; }
+        .thumbnail:hover { border-color: var(--neon); transform: scale(1.05); }
+        .thumbnail img { width: 100%; height: 180px; object-fit: cover; filter: grayscale(50%); transition: 0.4s; }
+        .thumbnail:hover img { filter: grayscale(0%); }
 
-        /* PHASE 4: INTRO ANIMATION */
-        #intro-cinematic { display: none; position: fixed; inset: 0; background: black; z-index: 9000; flex-direction: column; justify-content: center; align-items: center; }
-        .flash-text { font-size: 1.8rem; color: var(--neon); position: absolute; opacity: 0; text-align: center; text-shadow: 0 0 15px var(--neon); transition: 0.5s; }
+        /* PHASE 4 & 5: THE GAME (LANDSCAPE & FLASHLIGHT) */
+        #game-area { display: none; height: 100vh; width: 100vw; position: relative; background: url('https://images.unsplash.com/photo-1513694203232-719a280e022f?q=80&w=2069') no-repeat center; background-size: cover; }
+        #flashlight-overlay { 
+            position: absolute; inset: 0; pointer-events: none; z-index: 10;
+            background: radial-gradient(circle 180px at var(--x, 50%) var(--y, 50%), transparent 0%, rgba(0,0,0,0.6) 60%, rgba(0,0,0,0.98) 100%);
+        }
 
-        /* PHASE 5: GAME AREA */
-        #game-area { display: none; height: 100vh; background: radial-gradient(circle, #151515, #000); position: relative; }
-        .top-bar { position: absolute; top: 20px; width: 100%; padding: 0 20px; display: flex; justify-content: space-between; z-index: 100; }
-        #object-container { height: 65vh; display: flex; flex-direction: column; justify-content: center; align-items: center; }
-        #clue-img { width: 180px; transition: transform 0.3s ease-out; }
-
-        /* UI BUTTONS */
-        .btn { background: none; border: 1px solid var(--neon); color: var(--neon); padding: 12px 25px; margin: 5px; cursor: pointer; text-transform: uppercase; border-radius: 5px; font-weight: bold; }
-        .btn:active { background: var(--neon); color: black; }
-
-        /* PHASE 6: FINAL VICTORY */
-        #victory-screen { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 9500; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
-        .stamp { color: var(--danger); font-size: 4rem; font-weight: 900; border: 10px solid var(--danger); padding: 10px 20px; transform: rotate(-20deg); opacity: 0; }
-        .accomplished { color: var(--gold); font-size: 1.5rem; margin-top: 20px; letter-spacing: 3px; opacity: 0; }
+        /* CLIMAX & DIALOGUE */
+        #climax-ui { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 100; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
+        .dialogue-box { background: rgba(255,255,255,0.1); padding: 20px; border-left: 5px solid var(--neon); margin: 20px; max-width: 600px; }
         
-        @keyframes stampAni { 0% { transform: scale(5); opacity: 0; } 100% { transform: scale(1) rotate(-20deg); opacity: 1; } }
-        @keyframes fadeUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        /* BUTTONS */
+        .btn { background: none; border: 2px solid var(--neon); color: var(--neon); padding: 12px 30px; margin: 10px; cursor: pointer; border-radius: 5px; font-weight: bold; text-transform: uppercase; }
+        .btn:hover { background: var(--neon); color: #000; }
+        .btn-danger { border-color: var(--danger); color: var(--danger); }
+        .btn-danger:hover { background: var(--danger); color: #fff; }
+
+        /* FINAL STAMPS */
+        #victory-screen { display: none; position: fixed; inset: 0; background: #000; z-index: 200; flex-direction: column; justify-content: center; align-items: center; }
+        .stamp { font-size: 5rem; font-weight: 900; border: 12px solid var(--danger); color: var(--danger); padding: 10px 40px; transform: rotate(-15deg); opacity: 0; animation: stampAnim 0.5s forwards; }
+        @keyframes stampAnim { 0% { transform: scale(5); opacity: 0; } 100% { transform: scale(1) rotate(-15deg); opacity: 1; } }
+
+        /* ROTATE WARNING */
+        @media screen and (orientation: portrait) { #rotate-msg { display: flex !important; } }
+        #rotate-msg { position: fixed; inset: 0; background: #000; z-index: 10000; display: none; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
     </style>
 </head>
 <body>
 
+    <div id="rotate-msg"><h1>🔄 ROTATE YOUR PHONE</h1><p>Landscape mode mein hi investigation shuru hogi.</p></div>
+
     <div id="loader">
-        <h2 style="letter-spacing:5px;">FLUX ENGINE</h2>
+        <h1 style="letter-spacing: 10px; color: var(--neon);">DETECTIVE KABIR</h1>
+        <p style="color: #555; margin-top: 5px;">FLUX ENGINE INITIALIZING...</p>
         <div class="load-bar"><div class="load-progress"></div></div>
     </div>
 
     <div id="website-hub">
-        <h1 style="margin-top:50px; color: var(--neon);">FLUX INTERACTIVE</h1>
+        <h1 style="color: var(--neon); margin-bottom: 20px;">FLUX INTERACTIVE HUB</h1>
         <div class="card-container">
-            <div class="card"><h3>🕹️ ARCADE</h3><p style="color:#555">Locked</p></div>
-            <div class="card" style="border-color:var(--neon)" onclick="openSelection()">
-                <h3>🕵️ CRIME FILES</h3><p>Detective Kabir</p>
+            <div class="card"><h3>🕹️ ARCADE</h3><p style="color:#444">Coming Soon</p></div>
+            <div class="card" style="border-color: var(--neon);" onclick="showCrimeFiles()">
+                <h3>🕵️ CRIME FILES</h3><p>Active Cases</p>
             </div>
-            <div class="card"><h3>🚀 ACTION</h3><p style="color:#555">Locked</p></div>
+            <div class="card"><h3>🚀 ACTION</h3><p style="color:#444">Locked</p></div>
         </div>
     </div>
 
     <div id="game-selection">
-        <h2 style="color:var(--neon); margin-bottom:20px;">CHOOSE A CASE</h2>
-        <div class="poster" onclick="startIntro()">
-            <img src="https://images.unsplash.com/photo-1585338927000-1c787b17eb5e?auto=format&fit=crop&w=400&q=80" alt="Case 01">
-            <div style="padding:15px; background:#111;">
-                <h4 style="color:var(--neon)">CASE 01: THE POISON</h4>
-                <p style="font-size:0.7rem; color:#aaa; margin-top:5px;">Click to Start Investigation</p>
+        <h2 style="color: var(--neon);">SELECT MISSION</h2>
+        <div class="thumbnail" onclick="startGame()">
+            <img src="https://images.unsplash.com/photo-1585338927000-1c787b17eb5e?q=80&w=400" alt="Case 01 Thumbnail">
+            <div style="background: #111; padding: 15px;">
+                <h3 style="color: var(--neon);">CASE 01: THE POISON HOUSE</h3>
+                <p style="font-size: 0.8rem; color: #888;">Kabir enters the suspect's house...</p>
             </div>
         </div>
-        <div class="poster" style="opacity:0.3; cursor:default;">
-            <div style="height:150px; background:#222; display:flex; align-items:center; justify-content:center;">🔒</div>
-            <div style="padding:15px;"><h4>CASE 02</h4><p>Coming Soon</p></div>
-        </div>
-        <button class="btn" onclick="location.reload()">BACK TO HUB</button>
+        <button class="btn" onclick="goHome()">BACK</button>
     </div>
 
-    <div id="intro-cinematic">
-        <div class="flash-text" id="t1">🔍 SCAN FOR CLUES</div>
-        <div class="flash-text" id="t2">🧤 360° INSPECTION</div>
-        <div class="flash-text" id="t3">👣 CATCH THE KILLER</div>
+    <div id="game-area" onmousemove="moveLight(event)" ontouchmove="moveLight(event.touches[0])">
+        <div id="flashlight-overlay"></div>
+        <div style="position: absolute; top: 20px; left: 20px; z-index: 50; background: rgba(0,0,0,0.5); padding: 10px;">
+            <p id="clue-tracker">SURAG: 0/3</p>
+        </div>
+
+        <div id="clue1" style="position: absolute; top: 30%; left: 20%; width: 50px; height: 50px; cursor: pointer;" onclick="foundClue(1)"></div>
+        <div id="clue2" style="position: absolute; top: 60%; left: 70%; width: 50px; height: 50px; cursor: pointer;" onclick="foundClue(2)"></div>
+        <div id="clue3" style="position: absolute; top: 20%; left: 85%; width: 50px; height: 50px; cursor: pointer;" onclick="foundClue(3)"></div>
     </div>
 
-    <div id="game-area">
-        <div class="top-bar">
-            <div id="pts" style="color:var(--gold); font-weight:bold; font-size:1.2rem;">POINTS: 0</div>
-            <div style="font-size:30px; cursor:pointer; color:var(--neon);" onclick="togglePause()">⋮</div>
+    <div id="climax-ui">
+        <h2 style="color: var(--danger); margin-bottom: 10px;">CONFRONTATION</h2>
+        <div class="dialogue-box" id="dialogue-text">
+            Kabir: "Khel khatam! Apne hath upar karo!"
         </div>
-        <div id="object-container">
-            <h3 id="game-msg" style="margin-bottom:20px; letter-spacing:2px;">INSPECT THE EVIDENCE</h3>
-            <img src="https://cdn-icons-png.flaticon.com/512/1055/1055591.png" id="clue-img">
-            <div style="margin-top:30px;">
-                <button class="btn" onclick="rotate(-45)">↺ LEFT</button>
-                <button class="btn" onclick="rotate(45)">RIGHT ↻</button>
-            </div>
+        <div id="final-choices" style="display: none;">
+            <button class="btn" onclick="finish('ARRESTED')">✋ WAIT (SURRENDER)</button>
+            <button class="btn btn-danger" onclick="finish('ELIMINATED')">🔫 SHOOT (NO SURRENDER)</button>
         </div>
-        <div style="text-align:center; padding-bottom:20px;">
-            <button class="btn" style="border-color:var(--gold); color:var(--gold);" onclick="useHint()">💡 HINT (100 PTS)</button>
-            <button class="btn" id="solve-btn" style="display:none; border-color:white; color:white;" onclick="showFinalVictory()">ARREST SUSPECT</button>
-        </div>
-    </div>
-
-    <div id="pause-overlay">
-        <button class="btn" onclick="togglePause()">CONTINUE</button>
-        <button class="btn" onclick="location.reload()">EXIT TO HUB</button>
     </div>
 
     <div id="victory-screen">
         <div id="final-stamp" class="stamp">ARRESTED</div>
-        <div id="final-acc" class="accomplished">MISSION ACCOMPLISHED</div>
-        <p style="margin:30px; color:#888;">Detective Kabir has solved the mystery.</p>
-        <button class="btn" onclick="location.reload()">RETURN TO HUB</button>
+        <h1 id="mission-status" style="margin-top: 30px; letter-spacing: 5px; color: var(--gold);">MISSION ACCOMPLISHED</h1>
+        <button class="btn" style="margin-top: 50px;" onclick="location.reload()">BACK TO HUB</button>
     </div>
 
     <script>
-        let points = 0, currentRot = 0, clueFound = false;
-        
-        const kabirSpeaks = (text) => {
-            const msg = new SpeechSynthesisUtterance(text);
-            msg.lang = 'hi-IN';
-            window.speechSynthesis.speak(msg);
-        };
+        let clues = 0;
+        const kabirSpeaks = (t) => { const m = new SpeechSynthesisUtterance(t); m.lang='hi-IN'; window.speechSynthesis.speak(m); };
 
-        // Phase 1 to 2
+        // 1. Loading sequence
         setTimeout(() => {
             document.getElementById('loader').style.display = 'none';
             document.getElementById('website-hub').style.display = 'block';
-        }, 1500);
+        }, 3000);
 
-        // Phase 3
-        function openSelection() {
+        function showCrimeFiles() {
             document.getElementById('website-hub').style.display = 'none';
             document.getElementById('game-selection').style.display = 'block';
         }
 
-        // Phase 4
-        function startIntro() {
+        function goHome() {
             document.getElementById('game-selection').style.display = 'none';
-            document.getElementById('intro-cinematic').style.display = 'flex';
-            const texts = ["t1", "t2", "t3"];
-            texts.forEach((id, i) => {
-                setTimeout(() => {
-                    const el = document.getElementById(id);
-                    el.style.opacity = 1;
-                    setTimeout(() => el.style.opacity = 0, 1200);
-                }, i * 1500);
-            });
+            document.getElementById('website-hub').style.display = 'block';
+        }
+
+        // 2. Game Start
+        function startGame() {
+            document.getElementById('game-selection').style.display = 'none';
+            document.getElementById('game-area').style.display = 'block';
+            kabirSpeaks("Kabir ghar ke andar pahunch chuka hai. Flashlight se surag dhundna shuru karo.");
+        }
+
+        // 3. Realistic Flashlight
+        function moveLight(e) {
+            const overlay = document.getElementById('flashlight-overlay');
+            overlay.style.setProperty('--x', e.clientX + 'px');
+            overlay.style.setProperty('--y', e.clientY + 'px');
+        }
+
+        // 4. Investigation
+        function foundClue(num) {
+            clues++;
+            document.getElementById('clue-tracker').innerText = `SURAG: ${clues}/3`;
+            document.getElementById('clue' + num).style.display = 'none';
+            kabirSpeaks("Ek aur surag mila.");
+            if(clues === 3) startClimax();
+        }
+
+        // 5. Climax Dialogue
+        function startClimax() {
+            document.getElementById('climax-ui').style.display = 'flex';
             setTimeout(() => {
-                document.getElementById('intro-cinematic').style.display = 'none';
-                document.getElementById('game-area').style.display = 'block';
-                kabirSpeaks("Main hoon Detective Kabir. Is case ki teh tak jaana mera kaam hai.");
-            }, 5000);
+                document.getElementById('dialogue-text').innerText = "Katil: 'Tumhe kya laga Kabir? Tum mujhe itni asani se pakad loge?'";
+                kabirSpeaks("Katil keh raha hai: Tumhe kya laga Kabir? Tum mujhe itni asani se pakad loge?");
+            }, 3000);
+            setTimeout(() => {
+                document.getElementById('dialogue-text').innerText = "Kabir: 'Tumhare paas koi rasta nahi hai. Surrender karo ya fir...'";
+                kabirSpeaks("Surrender karo ya fir...");
+                document.getElementById('final-choices').style.display = 'block';
+            }, 6000);
         }
 
-        // Phase 5
-        function rotate(deg) {
-            currentRot += deg;
-            document.getElementById('clue-img').style.transform = `rotate(${currentRot}deg)`;
-            if(Math.abs(currentRot % 360) === 180 && !clueFound) {
-                clueFound = true;
-                points += 100;
-                document.getElementById('pts').innerText = "POINTS: " + points;
-                document.getElementById('game-msg').innerText = "CLUE FOUND!";
-                document.getElementById('game-msg').style.color = "var(--neon)";
-                document.getElementById('solve-btn').style.display = 'inline-block';
-                kabirSpeaks("Hanh! Ye raha woh surag. Ab katil bach kar nahi ja sakta.");
-            }
-        }
-
-        function useHint() {
-            if(points >= 100) {
-                points -= 100;
-                document.getElementById('pts').innerText = "POINTS: " + points;
-                alert("HINT: Try rotating the bottle to 180 degrees (Upside down)!");
-            } else {
-                alert("Need 100 points for a hint!");
-            }
-        }
-
-        function togglePause() {
-            const p = document.getElementById('pause-overlay');
-            p.style.display = (p.style.display === 'flex') ? 'none' : 'flex';
-        }
-
-        // Phase 6
-        function showFinalVictory() {
+        // 6. Finish Logic
+        function finish(type) {
+            document.getElementById('climax-ui').style.display = 'none';
             document.getElementById('victory-screen').style.display = 'flex';
             const stamp = document.getElementById('final-stamp');
-            const acc = document.getElementById('final-acc');
-            
-            kabirSpeaks("Mission Accomplished. Katil ko arrest kar liya gaya hai.");
-            
-            setTimeout(() => {
-                stamp.style.animation = "stampAni 0.5s forwards";
-            }, 300);
-            
-            setTimeout(() => {
-                acc.style.animation = "fadeUp 0.8s forwards";
-            }, 1000);
+            const status = document.getElementById('mission-status');
+
+            if(type === 'ARRESTED') {
+                stamp.innerText = "ARRESTED";
+                stamp.style.borderColor = "var(--neon)";
+                stamp.style.color = "var(--neon)";
+                status.innerText = "MISSION ACCOMPLISHED";
+                kabirSpeaks("Gunehgaar ne surrender kar diya. Mission Accomplished.");
+            } else {
+                stamp.innerText = "ELIMINATED";
+                stamp.style.borderColor = "var(--danger)";
+                stamp.style.color = "var(--danger)";
+                status.innerText = "CASE SOLVED";
+                kabirSpeaks("Gunehgaar ne bhagne ki koshish ki. Case Solved.");
+            }
         }
     </script>
 </body>
