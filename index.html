@@ -3,43 +3,120 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fluxgame | Official</title>
+    <title>FLUXGAME | Official Portal</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
+        
         body {
-            background-color: #0a0a0a;
-            color: #00f2ff;
+            background-color: #050505;
+            color: white;
             font-family: 'Segoe UI', sans-serif;
+            overflow-x: hidden;
+        }
+
+        /* Nav Bar - Upar ki patti */
+        nav {
+            width: 100%;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.8);
+            border-bottom: 2px solid #00f2ff;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #00f2ff;
+            text-shadow: 0 0 10px #00f2ff;
+        }
+
+        /* Main Section */
+        .hero {
+            height: 90vh;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            min-height: 100vh;
             text-align: center;
+            background: radial-gradient(circle, rgba(146, 20, 255, 0.1) 0%, rgba(0, 0, 0, 1) 80%);
             padding: 20px;
-            overflow: hidden;
         }
+
         h1 {
-            font-size: clamp(2.5rem, 12vw, 6rem); 
-            text-shadow: 0 0 20px #00f2ff, 0 0 50px #9214ff;
-            animation: glow 2s ease-in-out infinite alternate;
-            letter-spacing: 5px;
+            font-size: clamp(3rem, 15vw, 7rem);
+            margin-bottom: 10px;
+            background: linear-gradient(to right, #00f2ff, #9214ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            filter: drop-shadow(0 0 20px rgba(0, 242, 255, 0.5));
         }
+
         p {
-            font-size: clamp(0.9rem, 3vw, 1.5rem);
-            color: #888;
-            margin: 15px 0;
-            letter-spacing: 2px;
+            font-size: clamp(1rem, 4vw, 1.8rem);
+            color: #ccc;
+            margin-bottom: 30px;
+            max-width: 700px;
         }
-        .loading-container { width: 80%; max-width: 400px; height: 5px; background: #1a1a1a; border-radius: 10px; position: relative; overflow: hidden; margin-top: 20px; }
-        .progress { width: 40%; height: 100%; background: linear-gradient(90deg, #00f2ff, #9214ff); box-shadow: 0 0 15px #00f2ff; animation: load 2.5s infinite ease-in-out; position: absolute; }
-        @keyframes load { 0% { left: -40%; } 100% { left: 100%; } }
-        @keyframes glow { from { transform: scale(0.95); opacity: 0.8; } to { transform: scale(1); opacity: 1; } }
+
+        /* Gaming Buttons */
+        .btn-group {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .btn {
+            padding: 15px 35px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            text-decoration: none;
+            color: white;
+            border: 2px solid #00f2ff;
+            border-radius: 50px;
+            transition: 0.3s;
+            cursor: pointer;
+        }
+
+        .btn:hover {
+            background: #00f2ff;
+            color: black;
+            box-shadow: 0 0 30px #00f2ff;
+            transform: translateY(-5px);
+        }
+
+        .btn-purple {
+            border-color: #9214ff;
+        }
+
+        .btn-purple:hover {
+            background: #9214ff;
+            box-shadow: 0 0 30px #9214ff;
+        }
     </style>
 </head>
 <body>
-    <h1>FLUXGAME</h1>
-    <p>THE FUTURE OF GAMING IS LOADING</p>
-    <div class="loading-container"><div class="progress"></div></div>
+
+    <nav>
+        <div class="logo">FLUXGAME</div>
+        <div style="color: #888; font-size: 0.8rem;">EST. 2024</div>
+    </nav>
+
+    <div class="hero">
+        <h1>FLUXGAME</h1>
+        <p>Experience the next level of gaming. High-octane action, community, and more.</p>
+        
+        <div class="btn-group">
+            <a href="#" class="btn">Explore Games</a>
+            <a href="#" class="btn btn-purple">Join Discord</a>
+        </div>
+    </div>
+
 </body>
 </html>
