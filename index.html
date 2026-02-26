@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Fluxgame | Official</title>
     <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             background-color: #0a0a0a;
             color: #00f2ff;
@@ -13,58 +14,32 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            height: 100vh;
-            margin: 0;
+            min-height: 100vh;
+            text-align: center;
+            padding: 20px;
             overflow: hidden;
         }
-
         h1 {
-            font-size: 5rem;
-            letter-spacing: 10px;
-            text-shadow: 0 0 20px #00f2ff, 0 0 40px #00f2ff;
+            font-size: clamp(2.5rem, 12vw, 6rem); 
+            text-shadow: 0 0 20px #00f2ff, 0 0 50px #9214ff;
             animation: glow 2s ease-in-out infinite alternate;
+            letter-spacing: 5px;
         }
-
-        @keyframes glow {
-            from { opacity: 0.8; text-shadow: 0 0 10px #00f2ff; }
-            to { opacity: 1; text-shadow: 0 0 30px #00f2ff, 0 0 50px #9214ff; }
-        }
-
         p {
-            font-size: 1.5rem;
+            font-size: clamp(0.9rem, 3vw, 1.5rem);
             color: #888;
-            margin-top: -10px;
+            margin: 15px 0;
+            letter-spacing: 2px;
         }
-
-        .loading-bar {
-            width: 300px;
-            height: 4px;
-            background: #222;
-            margin-top: 20px;
-            position: relative;
-            border-radius: 10px;
-        }
-
-        .progress {
-            width: 50%;
-            height: 100%;
-            background: #00f2ff;
-            box-shadow: 0 0 15px #00f2ff;
-            animation: load 3s infinite;
-        }
-
-        @keyframes load {
-            0% { width: 0%; left: 0; }
-            50% { width: 100%; left: 0; }
-            100% { width: 0%; left: 100%; }
-        }
+        .loading-container { width: 80%; max-width: 400px; height: 5px; background: #1a1a1a; border-radius: 10px; position: relative; overflow: hidden; margin-top: 20px; }
+        .progress { width: 40%; height: 100%; background: linear-gradient(90deg, #00f2ff, #9214ff); box-shadow: 0 0 15px #00f2ff; animation: load 2.5s infinite ease-in-out; position: absolute; }
+        @keyframes load { 0% { left: -40%; } 100% { left: 100%; } }
+        @keyframes glow { from { transform: scale(0.95); opacity: 0.8; } to { transform: scale(1); opacity: 1; } }
     </style>
 </head>
 <body>
     <h1>FLUXGAME</h1>
-    <p>The Future of Gaming is Loading...</p>
-    <div class="loading-bar">
-        <div class="progress"></div>
-    </div>
+    <p>THE FUTURE OF GAMING IS LOADING</p>
+    <div class="loading-container"><div class="progress"></div></div>
 </body>
 </html>
