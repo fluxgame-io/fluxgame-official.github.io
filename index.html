@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fluxgame | Official</title>
+    <style>
+        body {
+            background-color: #0a0a0a;
+            color: #00f2ff;
+            font-family: 'Segoe UI', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        h1 {
+            font-size: 5rem;
+            letter-spacing: 10px;
+            text-shadow: 0 0 20px #00f2ff, 0 0 40px #00f2ff;
+            animation: glow 2s ease-in-out infinite alternate;
+        }
+
+        @keyframes glow {
+            from { opacity: 0.8; text-shadow: 0 0 10px #00f2ff; }
+            to { opacity: 1; text-shadow: 0 0 30px #00f2ff, 0 0 50px #9214ff; }
+        }
+
+        p {
+            font-size: 1.5rem;
+            color: #888;
+            margin-top: -10px;
+        }
+
+        .loading-bar {
+            width: 300px;
+            height: 4px;
+            background: #222;
+            margin-top: 20px;
+            position: relative;
+            border-radius: 10px;
+        }
+
+        .progress {
+            width: 50%;
+            height: 100%;
+            background: #00f2ff;
+            box-shadow: 0 0 15px #00f2ff;
+            animation: load 3s infinite;
+        }
+
+        @keyframes load {
+            0% { width: 0%; left: 0; }
+            50% { width: 100%; left: 0; }
+            100% { width: 0%; left: 100%; }
+        }
+    </style>
+</head>
+<body>
+    <h1>FLUXGAME</h1>
+    <p>The Future of Gaming is Loading...</p>
+    <div class="loading-bar">
+        <div class="progress"></div>
+    </div>
+</body>
+</html>
