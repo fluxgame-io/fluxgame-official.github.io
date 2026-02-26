@@ -1,257 +1,212 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="hi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>FLUXGAME | Hills Climber</title>
+    <title>DETECTIVE KABIR: THE CRIME FILES</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; touch-action: none; }
-        body { background-color: #050505; color: white; font-family: 'Segoe UI', sans-serif; overflow: hidden; height: 100vh; display: flex; flex-direction: column; }
+        :root { --neon: #00f2ff; --danger: #ff3e3e; --gold: #ffd700; --bg: #050505; }
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body { background: var(--bg); color: white; font-family: 'Segoe UI', sans-serif; overflow: hidden; }
+
+        /* PHASE 1: LOADER */
+        #loader { position: fixed; inset: 0; background: #000; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 9999; }
+        .load-bar { width: 200px; height: 3px; background: #222; margin-top: 15px; overflow: hidden; }
+        .load-progress { width: 0%; height: 100%; background: var(--neon); animation: load 1.5s forwards; }
+        @keyframes load { 100% { width: 100%; } }
+
+        /* PHASE 2: HUB */
+        #website-hub { display: none; height: 100vh; overflow-y: auto; text-align: center; }
+        .card-container { display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; padding: 40px 20px; }
+        .card { background: #111; border: 1px solid #333; width: 250px; padding: 25px; border-radius: 15px; cursor: pointer; transition: 0.3s; }
+        .card:hover { border-color: var(--neon); transform: translateY(-5px); }
+
+        /* PHASE 3: SELECTION (THUMBNAIL) */
+        #game-selection { display: none; height: 100vh; padding: 40px 20px; text-align: center; }
+        .poster { width: 240px; border: 2px solid #333; border-radius: 15px; overflow: hidden; cursor: pointer; transition: 0.3s; margin: 20px auto; }
+        .poster:hover { border-color: var(--neon); box-shadow: 0 0 20px var(--neon); }
+        .poster img { width: 100%; height: 150px; object-fit: cover; }
+
+        /* PHASE 4: INTRO ANIMATION */
+        #intro-cinematic { display: none; position: fixed; inset: 0; background: black; z-index: 9000; flex-direction: column; justify-content: center; align-items: center; }
+        .flash-text { font-size: 1.8rem; color: var(--neon); position: absolute; opacity: 0; text-align: center; text-shadow: 0 0 15px var(--neon); transition: 0.5s; }
+
+        /* PHASE 5: GAME AREA */
+        #game-area { display: none; height: 100vh; background: radial-gradient(circle, #151515, #000); position: relative; }
+        .top-bar { position: absolute; top: 20px; width: 100%; padding: 0 20px; display: flex; justify-content: space-between; z-index: 100; }
+        #object-container { height: 65vh; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+        #clue-img { width: 180px; transition: transform 0.3s ease-out; }
+
+        /* UI BUTTONS */
+        .btn { background: none; border: 1px solid var(--neon); color: var(--neon); padding: 12px 25px; margin: 5px; cursor: pointer; text-transform: uppercase; border-radius: 5px; font-weight: bold; }
+        .btn:active { background: var(--neon); color: black; }
+
+        /* PHASE 6: FINAL VICTORY */
+        #victory-screen { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 9500; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
+        .stamp { color: var(--danger); font-size: 4rem; font-weight: 900; border: 10px solid var(--danger); padding: 10px 20px; transform: rotate(-20deg); opacity: 0; }
+        .accomplished { color: var(--gold); font-size: 1.5rem; margin-top: 20px; letter-spacing: 3px; opacity: 0; }
         
-        /* Navbar */
-        nav { width: 100%; padding: 15px 5%; display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.9); border-bottom: 2px solid #00f2ff; z-index: 100; }
-        .logo { font-size: 1.2rem; font-weight: bold; color: #00f2ff; text-shadow: 0 0 10px #00f2ff; }
-        .score { font-size: 1rem; color: #9214ff; font-weight: bold; }
-
-        /* Game Area */
-        #gameCanvas {
-            flex-grow: 1;
-            width: 100%;
-            background: linear-gradient(180deg, #111 0%, #000 100%);
-        }
-
-        /* Controls Hint */
-        .controls-hint {
-            position: absolute;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(0,0,0,0.7);
-            padding: 10px 20px;
-            border-radius: 20px;
-            border: 1px solid #333;
-            color: #888;
-            font-size: 0.8rem;
-            pointer-events: none;
-        }
+        @keyframes stampAni { 0% { transform: scale(5); opacity: 0; } 100% { transform: scale(1) rotate(-20deg); opacity: 1; } }
+        @keyframes fadeUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
     </style>
 </head>
 <body>
 
-    <nav>
-        <div class="logo">FLUXGAME | Hills Climber</div>
-        <div class="score">Score: <span id="scoreVal">0</span></div>
-    </nav>
+    <div id="loader">
+        <h2 style="letter-spacing:5px;">FLUX ENGINE</h2>
+        <div class="load-bar"><div class="load-progress"></div></div>
+    </div>
 
-    <canvas id="gameCanvas"></canvas>
+    <div id="website-hub">
+        <h1 style="margin-top:50px; color: var(--neon);">FLUX INTERACTIVE</h1>
+        <div class="card-container">
+            <div class="card"><h3>🕹️ ARCADE</h3><p style="color:#555">Locked</p></div>
+            <div class="card" style="border-color:var(--neon)" onclick="openSelection()">
+                <h3>🕵️ CRIME FILES</h3><p>Detective Kabir</p>
+            </div>
+            <div class="card"><h3>🚀 ACTION</h3><p style="color:#555">Locked</p></div>
+        </div>
+    </div>
 
-    <div class="controls-hint">Hold to Accelerate</div>
+    <div id="game-selection">
+        <h2 style="color:var(--neon); margin-bottom:20px;">CHOOSE A CASE</h2>
+        <div class="poster" onclick="startIntro()">
+            <img src="https://images.unsplash.com/photo-1585338927000-1c787b17eb5e?auto=format&fit=crop&w=400&q=80" alt="Case 01">
+            <div style="padding:15px; background:#111;">
+                <h4 style="color:var(--neon)">CASE 01: THE POISON</h4>
+                <p style="font-size:0.7rem; color:#aaa; margin-top:5px;">Click to Start Investigation</p>
+            </div>
+        </div>
+        <div class="poster" style="opacity:0.3; cursor:default;">
+            <div style="height:150px; background:#222; display:flex; align-items:center; justify-content:center;">🔒</div>
+            <div style="padding:15px;"><h4>CASE 02</h4><p>Coming Soon</p></div>
+        </div>
+        <button class="btn" onclick="location.reload()">BACK TO HUB</button>
+    </div>
+
+    <div id="intro-cinematic">
+        <div class="flash-text" id="t1">🔍 SCAN FOR CLUES</div>
+        <div class="flash-text" id="t2">🧤 360° INSPECTION</div>
+        <div class="flash-text" id="t3">👣 CATCH THE KILLER</div>
+    </div>
+
+    <div id="game-area">
+        <div class="top-bar">
+            <div id="pts" style="color:var(--gold); font-weight:bold; font-size:1.2rem;">POINTS: 0</div>
+            <div style="font-size:30px; cursor:pointer; color:var(--neon);" onclick="togglePause()">⋮</div>
+        </div>
+        <div id="object-container">
+            <h3 id="game-msg" style="margin-bottom:20px; letter-spacing:2px;">INSPECT THE EVIDENCE</h3>
+            <img src="https://cdn-icons-png.flaticon.com/512/1055/1055591.png" id="clue-img">
+            <div style="margin-top:30px;">
+                <button class="btn" onclick="rotate(-45)">↺ LEFT</button>
+                <button class="btn" onclick="rotate(45)">RIGHT ↻</button>
+            </div>
+        </div>
+        <div style="text-align:center; padding-bottom:20px;">
+            <button class="btn" style="border-color:var(--gold); color:var(--gold);" onclick="useHint()">💡 HINT (100 PTS)</button>
+            <button class="btn" id="solve-btn" style="display:none; border-color:white; color:white;" onclick="showFinalVictory()">ARREST SUSPECT</button>
+        </div>
+    </div>
+
+    <div id="pause-overlay">
+        <button class="btn" onclick="togglePause()">CONTINUE</button>
+        <button class="btn" onclick="location.reload()">EXIT TO HUB</button>
+    </div>
+
+    <div id="victory-screen">
+        <div id="final-stamp" class="stamp">ARRESTED</div>
+        <div id="final-acc" class="accomplished">MISSION ACCOMPLISHED</div>
+        <p style="margin:30px; color:#888;">Detective Kabir has solved the mystery.</p>
+        <button class="btn" onclick="location.reload()">RETURN TO HUB</button>
+    </div>
 
     <script>
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
-        const scoreVal = document.getElementById('scoreVal');
-
-        // Resize Canvas
-        function resize() {
-            canvas.width = window.innerWidth;
-            canvas.height = canvas.clientHeight; // Game area only
-        }
-        window.addEventListener('resize', resize);
-        resize();
-
-        // Game State
-        let gameActive = true;
-        let score = 0;
-        let terrainPoints = [];
-        let screenOffset = 0;
-        let inputActive = false;
-
-        // Car object
-        const car = {
-            x: 100,
-            y: 0,
-            r: 15, // Radius (for collision/drawing)
-            vY: 0, // Velocity Y
-            vX: 0, // Velocity X
-            w: 40,
-            h: 20,
-            angle: 0
+        let points = 0, currentRot = 0, clueFound = false;
+        
+        const kabirSpeaks = (text) => {
+            const msg = new SpeechSynthesisUtterance(text);
+            msg.lang = 'hi-IN';
+            window.speechSynthesis.speak(msg);
         };
 
-        const GRAVITY = 0.5;
-        const ACCELERATION = 0.3;
-        const DRAG = 0.99;
+        // Phase 1 to 2
+        setTimeout(() => {
+            document.getElementById('loader').style.display = 'none';
+            document.getElementById('website-hub').style.display = 'block';
+        }, 1500);
 
-        // Handle Input
-        window.addEventListener('mousedown', () => inputActive = true);
-        window.addEventListener('mouseup', () => inputActive = false);
-        window.addEventListener('touchstart', (e) => { e.preventDefault(); inputActive = true; }, { passive: false });
-        window.addEventListener('touchend', () => inputActive = false);
-        window.addEventListener('keydown', (e) => { if (e.code === 'Space' || e.code === 'ArrowRight') inputActive = true; });
-        window.addEventListener('keyup', (e) => { if (e.code === 'Space' || e.code === 'ArrowRight') inputActive = false; });
+        // Phase 3
+        function openSelection() {
+            document.getElementById('website-hub').style.display = 'none';
+            document.getElementById('game-selection').style.display = 'block';
+        }
 
-        // Generate initial terrain
-        function initTerrain() {
-            terrainPoints = [];
-            let y = canvas.height * 0.7;
-            for (let x = 0; x < canvas.width * 2; x++) {
-                y += (Math.random() - 0.5) * 8; // Adjust randomness for hill height
-                terrainPoints.push({ x: x, y: y });
+        // Phase 4
+        function startIntro() {
+            document.getElementById('game-selection').style.display = 'none';
+            document.getElementById('intro-cinematic').style.display = 'flex';
+            const texts = ["t1", "t2", "t3"];
+            texts.forEach((id, i) => {
+                setTimeout(() => {
+                    const el = document.getElementById(id);
+                    el.style.opacity = 1;
+                    setTimeout(() => el.style.opacity = 0, 1200);
+                }, i * 1500);
+            });
+            setTimeout(() => {
+                document.getElementById('intro-cinematic').style.display = 'none';
+                document.getElementById('game-area').style.display = 'block';
+                kabirSpeaks("Main hoon Detective Kabir. Is case ki teh tak jaana mera kaam hai.");
+            }, 5000);
+        }
+
+        // Phase 5
+        function rotate(deg) {
+            currentRot += deg;
+            document.getElementById('clue-img').style.transform = `rotate(${currentRot}deg)`;
+            if(Math.abs(currentRot % 360) === 180 && !clueFound) {
+                clueFound = true;
+                points += 100;
+                document.getElementById('pts').innerText = "POINTS: " + points;
+                document.getElementById('game-msg').innerText = "CLUE FOUND!";
+                document.getElementById('game-msg').style.color = "var(--neon)";
+                document.getElementById('solve-btn').style.display = 'inline-block';
+                kabirSpeaks("Hanh! Ye raha woh surag. Ab katil bach kar nahi ja sakta.");
             }
         }
-        initTerrain();
 
-        function restartGame() {
-            car.x = 100;
-            car.y = canvas.height * 0.5;
-            car.vY = 0;
-            car.vX = 0;
-            car.angle = 0;
-            score = 0;
-            screenOffset = 0;
-            initTerrain();
-            gameActive = true;
-            scoreVal.innerText = score;
-        }
-        restartGame();
-
-        function update() {
-            if (!gameActive) return;
-
-            // Physics
-            car.vY += GRAVITY;
-
-            // Input handling
-            if (inputActive) {
-                car.vX += ACCELERATION;
+        function useHint() {
+            if(points >= 100) {
+                points -= 100;
+                document.getElementById('pts').innerText = "POINTS: " + points;
+                alert("HINT: Try rotating the bottle to 180 degrees (Upside down)!");
             } else {
-                car.vX *= DRAG; // Smooth deceleration
-            }
-
-            // Move car
-            car.x += car.vX;
-            car.y += car.vY;
-
-            // Simple camera follow
-            if (car.x > canvas.width * 0.4) {
-                let diff = car.x - canvas.width * 0.4;
-                screenOffset += diff;
-                car.x = canvas.width * 0.4;
-                
-                // Regenerate terrain (simple approach)
-                while(terrainPoints[0].x < screenOffset - 100) {
-                    let lastP = terrainPoints[terrainPoints.length - 1];
-                    let nextY = lastP.y + (Math.random() - 0.5) * 8;
-                    terrainPoints.push({x: lastP.x + 1, y: nextY});
-                    terrainPoints.shift();
-                }
-            }
-
-            // Terrain Collision
-            // Find current x index in visible terrainPoints
-            let terrainIndex = 0;
-            for(let i=0; i<terrainPoints.length; i++){
-                if(terrainPoints[i].x >= screenOffset + car.x){
-                    terrainIndex = i;
-                    break;
-                }
-            }
-
-            if(terrainIndex > 0){
-                let p1 = terrainPoints[terrainIndex-1];
-                let p2 = terrainPoints[terrainIndex];
-
-                // Simple interpolation for car height on slope
-                let ratio = (screenOffset + car.x - p1.x) / (p2.x - p1.x);
-                let terrainY = p1.y + (p2.y - p1.y) * ratio;
-
-                // Simple collision: keep car above terrain
-                if (car.y > terrainY - car.h/2) {
-                    car.y = terrainY - car.h/2;
-                    
-                    // Simple friction/rotation on slope (placeholder)
-                    car.vY = 0;
-                    car.angle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
-
-                    // Game over check (too much speed/wrong angle, placeholder)
-                    if(car.angle > Math.PI/3 || car.angle < -Math.PI/3){
-                        // gameActive = false; // Simple placeholder for now
-                    }
-                }
-            }
-
-            // Score
-            score = Math.floor(screenOffset / 100);
-            scoreVal.innerText = score;
-
-            // Screen bounds
-            if (car.y > canvas.height) {
-                gameActive = false; // Game Over (fell off)
+                alert("Need 100 points for a hint!");
             }
         }
 
-        function draw() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        function togglePause() {
+            const p = document.getElementById('pause-overlay');
+            p.style.display = (p.style.display === 'flex') ? 'none' : 'flex';
+        }
 
-            // Draw Terrain
-            ctx.beginPath();
-            ctx.moveTo(0, canvas.height);
-            for (let i = 0; i < terrainPoints.length; i++) {
-                ctx.lineTo(terrainPoints[i].x - screenOffset, terrainPoints[i].y);
-            }
-            ctx.lineTo(canvas.width, canvas.height);
-            ctx.closePath();
-            ctx.fillStyle = '#00f2ff33'; // Semi-transparent blue
-            ctx.fill();
-            ctx.strokeStyle = '#00f2ff';
-            ctx.lineWidth = 2;
-            ctx.stroke();
-
-            // Draw Car
-            ctx.save();
-            ctx.translate(car.x, car.y);
-            ctx.rotate(car.angle);
-            ctx.fillStyle = '#9214ff'; // Car color
-            ctx.fillRect(-car.w/2, -car.h/2, car.w, car.h);
-            ctx.strokeStyle = 'white';
-            ctx.strokeRect(-car.w/2, -car.h/2, car.w, car.h);
+        // Phase 6
+        function showFinalVictory() {
+            document.getElementById('victory-screen').style.display = 'flex';
+            const stamp = document.getElementById('final-stamp');
+            const acc = document.getElementById('final-acc');
             
-            // Wheels
-            ctx.fillStyle = '#333';
-            ctx.beginPath(); ctx.arc(-15, 10, 8, 0, Math.PI*2); ctx.fill();
-            ctx.beginPath(); ctx.arc(15, 10, 8, 0, Math.PI*2); ctx.fill();
-            ctx.restore();
-
-            // Draw GameOver
-            if (!gameActive) {
-                ctx.fillStyle = 'rgba(0,0,0,0.8)';
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-                ctx.fillStyle = 'white';
-                ctx.font = '3rem sans-serif';
-                ctx.textAlign = 'center';
-                ctx.fillText('GAME OVER!', canvas.width/2, canvas.height/2);
-                ctx.font = '1.2rem sans-serif';
-                ctx.fillStyle = '#aaa';
-                ctx.fillText('Final Score: ' + score, canvas.width/2, canvas.height/2 + 40);
-                ctx.fillText('Tap or Press Space to Restart', canvas.width/2, canvas.height/2 + 80);
-            }
+            kabirSpeaks("Mission Accomplished. Katil ko arrest kar liya gaya hai.");
+            
+            setTimeout(() => {
+                stamp.style.animation = "stampAni 0.5s forwards";
+            }, 300);
+            
+            setTimeout(() => {
+                acc.style.animation = "fadeUp 0.8s forwards";
+            }, 1000);
         }
-
-        // Main Loop
-        function loop() {
-            update();
-            draw();
-            requestAnimationFrame(loop);
-        }
-
-        // Handle GameOver restart
-        window.addEventListener('click', () => { if (!gameActive) restartGame(); });
-        window.addEventListener('touchend', () => { if (!gameActive) restartGame(); });
-        window.addEventListener('keydown', (e) => { if (!gameActive && (e.code === 'Space' || e.code === 'Enter')) restartGame(); });
-
-        loop();
-
     </script>
 </body>
 </html>
