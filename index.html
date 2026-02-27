@@ -1,163 +1,154 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>DETECTIVE KABIR: EVIDENCE HUNT</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>KABIR: PRO LIGHTING CONTROL</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #000; cursor: crosshair; }
-        #ui { position: fixed; bottom: 20px; left: 20px; color: #00f2ff; font-family: 'Courier New', monospace; z-index: 100; pointer-events: none; }
-        #crosshair { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-size: 20px; z-index: 100; }
-        #examine-overlay { 
-            position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: none; 
-            justify-content: center; align-items: center; z-index: 1000; flex-direction: column;
-        }
+        body { margin: 0; overflow: hidden; background: #000; font-family: 'Courier New', monospace; touch-action: none; }
+        #crosshair { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #fff; font-size: 24px; pointer-events: none; z-index: 100; }
+        .hud { position: fixed; top: 10px; left: 10px; color: #00f2ff; background: rgba(0,0,0,0.6); padding: 10px; z-index: 100; font-size: 12px; pointer-events: none; border-left: 3px solid #00f2ff; }
+        
+        /* Mobile Buttons */
+        .mobile-ui { position: fixed; bottom: 20px; right: 20px; display: none; gap: 10px; z-index: 200; }
+        .btn { width: 65px; height: 65px; background: rgba(0,242,255,0.2); border: 2px solid #00f2ff; border-radius: 50%; color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; pointer-events: auto; }
+        
+        @media (max-width: 900px) { .mobile-ui { display: flex; } }
     </style>
 </head>
 <body>
+
     <div id="crosshair">+</div>
-    <div id="ui">
-        KABIR: SEARCHING... <br>
-        [WASD] MOVE | [SHIFT] SPRINT | [F] LIGHT | [H] EXAMINE OBJECT (When Near)
+    <div id="hud" class="hud">
+        <b>KABIR SENSOR SYSTEM</b><br>
+        LIGHT: <span id="light-val">HIGH</span><br>
+        PC: [TAB] Intensity | [F] On/Off<br>
+        MOB: Auto-Focus Enabled
     </div>
-    
-    <div id="examine-overlay">
-        <h2 style="color: #00f2ff;">EXAMINING OBJECT...</h2>
-        <p style="color: #fff;">Mouse ghumao check karne ke liye | [ESCAPE] Back</p>
+
+    <div class="mobile-ui">
+        <div class="btn" id="btn-f">OFF</div>
+        <div class="btn" id="btn-h">H</div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
     <script>
-        let scene, camera, renderer, torch, room;
-        let moveF = false, moveB = false, moveL = false, moveR = false, isRunning = false;
-        let isExamining = false;
-        let examineObject = null;
+        let scene, camera, renderer, torch, raycaster, examineObject;
+        let yaw = new THREE.Object3D(), pitch = new THREE.Object3D();
+        let moveF = 0, moveR = 0;
+        let lightModes = [5, 20, 50]; // Low, Medium, High
+        let currentMode = 2; // Default High
+        let isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
         init();
 
         function init() {
             scene = new THREE.Scene();
-            // 1. FOG: Taaki beam hawa mein dikhe
-            scene.fog = new THREE.FogExp2(0x000000, 0.05);
+            scene.fog = new THREE.FogExp2(0x000000, 0.15);
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+            
+            yaw.add(pitch);
+            pitch.add(camera);
+            scene.add(yaw);
 
-            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.shadowMap.enabled = true;
             document.body.appendChild(renderer.domElement);
 
-            // 2. FLOOR & WALLS WITH TEXTURE (Maze ke liye)
-            const loader = new THREE.TextureLoader();
-            // Temporary checkerboard taaki movement dikhe
-            const floorTex = loader.load('https://threejs.org/examples/textures/grid.png');
-            floorTex.wrapS = floorTex.wrapT = THREE.RepeatWrapping;
-            floorTex.repeat.set(20, 20);
-
-            const floorMat = new THREE.MeshStandardMaterial({ map: floorTex, color: 0x222222 });
-            const floor = new THREE.Mesh(new THREE.PlaneGeometry(100, 100), floorMat);
-            floor.rotation.x = -Math.PI / 2;
-            floor.position.y = -2;
-            floor.receiveShadow = true;
+            // Ground & Object
+            const floor = new THREE.Mesh(new THREE.PlaneGeometry(100, 100), new THREE.MeshStandardMaterial({ color: 0x111111 }));
+            floor.rotation.x = -Math.PI/2; floor.position.y = -2; floor.receiveShadow = true;
             scene.add(floor);
 
-            // 3. THE MYSTERY OBJECT (Temporary Evidence)
-            const boxGeo = new THREE.BoxGeometry(1, 1, 1);
-            // Box par kuch likhne ke liye canvas texture
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
-            canvas.width = 256; canvas.height = 256;
-            ctx.fillStyle = '#8b4513'; ctx.fillRect(0,0,256,256);
-            ctx.fillStyle = 'white'; ctx.font = '30px Arial';
-            ctx.fillText("CODE: 4921", 50, 130);
-            
-            const boxTex = new THREE.CanvasTexture(canvas);
-            const boxMat = new THREE.MeshStandardMaterial({ map: boxTex });
-            examineObject = new THREE.Mesh(boxGeo, boxMat);
-            examineObject.position.set(0, -1.5, -5);
-            examineObject.castShadow = true;
+            // Object to examine
+            const objGeo = new THREE.BoxGeometry(1, 1, 1);
+            const objMat = new THREE.MeshStandardMaterial({ color: 0x555555 });
+            examineObject = new THREE.Mesh(objGeo, objMat);
+            examineObject.position.set(0, -1, -6);
             scene.add(examineObject);
 
-            // 4. POWERFUL LIGHT
-            torch = new THREE.SpotLight(0xffffff, 20);
-            torch.angle = Math.PI / 6;
-            torch.penumbra = 0.4;
-            torch.decay = 1.5;
-            torch.distance = 40;
-            torch.castShadow = true;
-            scene.add(torch);
-            scene.add(torch.target);
+            // FLASHLIGHT
+            torch = new THREE.SpotLight(0xffffff, lightModes[currentMode]);
+            torch.angle = Math.PI/7; torch.penumbra = 0.6; torch.castShadow = true;
+            camera.add(torch);
+            torch.target.position.set(0, 0, -1);
+            camera.add(torch.target);
 
-            // Controls
-            document.addEventListener('keydown', (e) => {
-                if(e.code === 'KeyW') moveF = true;
-                if(e.code === 'KeyS') moveB = true;
-                if(e.code === 'KeyA') moveL = true;
-                if(e.code === 'KeyD') moveR = true;
-                if(e.code === 'ShiftLeft') isRunning = true;
-                if(e.code === 'KeyF') torch.intensity = torch.intensity > 0 ? 0 : 20;
-                if(e.code === 'KeyH') tryExamine();
-                if(e.code === 'Escape') stopExamine();
-            });
-            document.addEventListener('keyup', (e) => {
-                if(e.code === 'KeyW') moveF = false;
-                if(e.code === 'KeyS') moveB = false;
-                if(e.code === 'KeyA') moveL = false;
-                if(e.code === 'KeyD') moveR = false;
-                if(e.code === 'ShiftLeft') isRunning = false;
-            });
+            raycaster = new THREE.Raycaster();
 
-            document.addEventListener('mousemove', (e) => {
-                if(isExamining) {
-                    examineObject.rotation.y += e.movementX * 0.01;
-                    examineObject.rotation.x += e.movementY * 0.01;
-                } else {
-                    camera.rotation.y -= e.movementX * 0.002;
-                    camera.rotation.x -= e.movementY * 0.002;
-                }
-            });
-
-            document.addEventListener('click', () => { document.body.requestPointerLock(); });
-
+            setupControls();
             animate();
         }
 
-        function tryExamine() {
-            // Check distance
-            const dist = camera.position.distanceTo(examineObject.position);
-            if(dist < 4) {
-                isExamining = true;
-                document.getElementById('examine-overlay').style.display = 'flex';
-                examineObject.oldPos = examineObject.position.clone();
-                // Screen ke center mein le aao zoom karke
-                examineObject.position.set(0, 0, -2);
-                camera.position.set(0,0,0);
-                camera.lookAt(examineObject.position);
-            }
+        function setupControls() {
+            // PC CONTROLS
+            document.addEventListener('keydown', (e) => {
+                if(e.key === 'Tab') {
+                    e.preventDefault();
+                    currentMode = (currentMode + 1) % lightModes.length;
+                    updateLightUI();
+                }
+                if(e.key === 'f') torch.visible = !torch.visible;
+                if(e.key === 'w') moveF = 1; if(e.key === 's') moveF = -1;
+                if(e.key === 'a') moveR = -1; if(e.key === 'd') moveR = 1;
+            });
+
+            document.addEventListener('keyup', (e) => {
+                if(['w','s'].includes(e.key)) moveF = 0;
+                if(['a','d'].includes(e.key)) moveR = 0;
+            });
+
+            // MOUSE WHEEL INTENSITY
+            document.addEventListener('wheel', (e) => {
+                if(e.deltaY < 0) currentMode = Math.min(2, currentMode + 1);
+                else currentMode = Math.max(0, currentMode - 1);
+                updateLightUI();
+            });
+
+            // LOOK CONTROL (PC & MOBILE)
+            document.addEventListener('pointermove', (e) => {
+                if(document.pointerLockElement || isMobile) {
+                    yaw.rotation.y -= e.movementX * 0.003;
+                    pitch.rotation.x -= e.movementY * 0.003;
+                    pitch.rotation.x = Math.max(-1.5, Math.min(1.5, pitch.rotation.x));
+                }
+            });
+
+            document.addEventListener('click', () => { if(!isMobile) document.body.requestPointerLock(); });
+            
+            // MOBILE BUTTONS
+            document.getElementById('btn-f').onclick = () => {
+                torch.visible = !torch.visible;
+                document.getElementById('btn-f').innerText = torch.visible ? "ON" : "OFF";
+            };
         }
 
-        function stopExamine() {
-            isExamining = false;
-            document.getElementById('examine-overlay').style.display = 'none';
-            examineObject.position.copy(examineObject.oldPos);
+        function updateLightUI() {
+            torch.intensity = lightModes[currentMode];
+            const labels = ["LOW", "MED", "HIGH"];
+            document.getElementById('light-val').innerText = labels[currentMode];
         }
 
         function animate() {
             requestAnimationFrame(animate);
-            if(!isExamining) {
-                let speed = isRunning ? 0.15 : 0.07;
-                if(moveF) camera.translateZ(-speed);
-                if(moveB) camera.translateZ(speed);
-                if(moveL) camera.translateX(-speed);
-                if(moveR) camera.translateX(speed);
-                
-                // Keep Kabir on the ground
-                camera.position.y = -1 + Math.sin(Date.now() * 0.005) * 0.05;
 
-                // Torch Follow
-                torch.position.copy(camera.position);
-                let vector = new THREE.Vector3(0, 0, -1);
-                vector.applyQuaternion(camera.quaternion);
-                torch.target.position.copy(camera.position.clone().add(vector));
+            // MOBILE AUTO-FOCUS LOGIC
+            if(isMobile && torch.visible) {
+                raycaster.setFromCamera(new THREE.Vector2(0,0), camera);
+                const intersects = raycaster.intersectObjects(scene.children);
+                if(intersects.length > 0 && intersects[0].distance < 8) {
+                    torch.intensity = 60; // Auto-boost near objects
+                } else {
+                    torch.intensity = 20; // Normal
+                }
             }
+
+            // Move
+            const dir = new THREE.Vector3(moveR, 0, -moveF).normalize();
+            dir.applyQuaternion(yaw.quaternion);
+            yaw.position.addScaledVector(dir, 0.1);
+
             renderer.render(scene, camera);
         }
     </script>
