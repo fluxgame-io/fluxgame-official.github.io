@@ -1,42 +1,45 @@
 <!DOCTYPE html>
-<html>
+<html lang="hi">
 <head>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>KABIR: BRIGHT LIGHTS</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DETECTIVE KABIR: FINAL CASE</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #000; font-family: 'Courier New', monospace; touch-action: none; }
-        #crosshair { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #fff; font-size: 24px; pointer-events: none; z-index: 100; }
-        .hud { position: fixed; top: 10px; left: 10px; color: #00f2ff; background: rgba(0,0,0,0.7); padding: 12px; z-index: 100; font-size: 13px; pointer-events: none; border-left: 4px solid #00f2ff; }
-        #msg { position: fixed; top: 20%; width: 100%; text-align: center; color: #00f2ff; display: none; z-index: 1000; font-weight: bold; background: rgba(0,0,0,0.8); padding: 15px; border: 1px solid #00f2ff; }
+        body { margin: 0; overflow: hidden; background: #000; font-family: 'Courier New', Courier, monospace; }
+        #crosshair { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #fff; font-size: 20px; pointer-events: none; z-index: 100; }
+        .hud { position: fixed; bottom: 30px; left: 30px; color: #00f2ff; background: rgba(0,0,0,0.85); padding: 15px; border: 2px solid #00f2ff; border-radius: 5px; z-index: 100; }
+        #msg { position: fixed; top: 20%; width: 100%; text-align: center; color: #ff0000; font-size: 28px; font-weight: bold; text-shadow: 2px 2px #000; display: none; z-index: 1000; }
+        #inventory { position: fixed; top: 20px; right: 20px; color: #ffcc00; font-size: 14px; background: rgba(0,0,0,0.8); padding: 10px; border: 1px dashed #ffcc00; }
     </style>
 </head>
 <body>
 
     <div id="crosshair">+</div>
-    <div id="msg"></div>
+    <div id="msg">LOCKED</div>
+    <div id="inventory">EVIDENCE: <span id="evidence-status">NOT FOUND</span></div>
     
-    <div id="hud" class="hud">
-        <b>KABIR SENSOR SYSTEM</b><br>
-        ROOM 1: <span id="r1-stat" style="color:yellow">ON</span> | ROOM 2: <span id="r2-stat" style="color:yellow">ON</span><br>
-        [H] Switch/Door | [F] Torch
+    <div class="hud">
+        <b>KABIR INVESTIGATION - CASE #1045</b><br>
+        [WASD] Chalna | [SPACE] Bhagna | [F] Torch<br>
+        [H] Interact / Examine / Rakhna
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
     <script>
-        let scene, camera, renderer, torch, door;
+        let scene, camera, renderer, torch, flowerPot;
         let yaw = new THREE.Object3D(), pitch = new THREE.Object3D();
-        let moveF = 0, moveR = 0, isSprinting = false;
-        let colliders = [], interactables = [];
-        let room1Light, room2Light;
+        let moveF = 0, moveR = 0, isSprinting = false, isExamining = false;
+        let colliders = [], interactables = [], roomLights = [];
+        let hasCode = false;
 
         init();
 
         function init() {
             scene = new THREE.Scene();
-            // Fog kam kar di taaki door tak saaf dikhe
-            scene.fog = new THREE.FogExp2(0x000000, 0.03); 
-            
+            scene.background = new THREE.Color(0x0a0a0a);
+            scene.fog = new THREE.FogExp2(0x000000, 0.04);
+
             camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
             yaw.add(pitch); pitch.add(camera); scene.add(yaw);
 
@@ -45,145 +48,169 @@
             renderer.shadowMap.enabled = true;
             document.body.appendChild(renderer.domElement);
 
-            // 1. FLOOR & CEILING
-            const floorMat = new THREE.MeshStandardMaterial({ color: 0x444444 });
-            const floor = new THREE.Mesh(new THREE.PlaneGeometry(60, 60), floorMat);
+            // 1. LIGHTS - HIGH INTENSITY (Brightness Fix)
+            addBrightLight(0, 4, -7, 0); // Room 1
+            addBrightLight(0, 4, 10, 1);  // Room 2
+
+            // 2. FLOOR & CEILING
+            const floor = new THREE.Mesh(new THREE.PlaneGeometry(60, 60), new THREE.MeshStandardMaterial({ color: 0x333333 }));
             floor.rotation.x = -Math.PI/2; floor.position.y = -2; floor.receiveShadow = true;
             scene.add(floor);
 
-            // 2. MAIN ROOM LIGHTS (Intensity badha kar 2.5 kar di hai)
-            room1Light = new THREE.PointLight(0xffffff, 2.5, 25);
-            room1Light.position.set(0, 4, -7);
-            room1Light.castShadow = true;
-            scene.add(room1Light);
+            // 3. WALLS & COLLISION BOUNDARIES
+            const wallMat = new THREE.MeshStandardMaterial({ color: 0x888888 });
+            createSolidWall(0, 1.5, -15, 20, 7, wallMat); // Back
+            createSolidWall(-10, 1.5, 0, 30, 7, wallMat, true); // Left
+            createSolidWall(10, 1.5, 0, 30, 7, wallMat, true); // Right
+            createSolidWall(-6, 1.5, 0, 8, 7, wallMat); // Partition
+            createSolidWall(6, 1.5, 0, 8, 7, wallMat);
 
-            room2Light = new THREE.PointLight(0xffffff, 2.5, 30);
-            room2Light.position.set(0, 4, 10);
-            room2Light.castShadow = true;
-            scene.add(room2Light);
+            // 4. THE LOCKED DOOR
+            const doorObj = new THREE.Mesh(new THREE.BoxGeometry(4, 5.5, 0.3), new THREE.MeshStandardMaterial({color: 0x4b2d1f}));
+            doorObj.position.set(0, 0.75, 0); doorObj.userData = { type: 'door', isOpen: false };
+            scene.add(doorObj); colliders.push(doorObj); interactables.push(doorObj);
 
-            // Visual bulbs on ceiling
-            const bulbGeo = new THREE.SphereGeometry(0.2, 16, 16);
-            const bulbMat = new THREE.MeshBasicMaterial({color: 0xffffff});
-            const bulb1 = new THREE.Mesh(bulbGeo, bulbMat); bulb1.position.set(0, 4, -7); scene.add(bulb1);
-            const bulb2 = new THREE.Mesh(bulbGeo, bulbMat); bulb2.position.set(0, 4, 10); scene.add(bulb2);
+            // 5. THE INVESTIGATION TABLE (Solid)
+            createFurniture(0, -1.2, -8, 4, 1.8, 2.5, 0x4a2c16); 
 
-            // 3. WALLS (Thoda light color taaki roshni reflect ho)
-            const wallMat = new THREE.MeshStandardMaterial({ color: 0x888888 }); 
-            createWall(0, 1.5, -15, 20, 7, wallMat); // Back
-            createWall(-10, 1.5, 0, 30, 7, wallMat, true); // Left
-            createWall(10, 1.5, 0, 30, 7, wallMat, true); // Right
-            createWall(-6, 1.5, 0, 8, 7, wallMat); // Mid Left
-            createWall(6, 1.5, 0, 8, 7, wallMat); // Mid Right
+            // 6. THE FLOWER POT (With Hidden Code)
+            flowerPot = new THREE.Group();
+            const potBase = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.3, 0.7, 12), new THREE.MeshStandardMaterial({color: 0xcd853f}));
+            flowerPot.add(potBase);
+            // Hidden Code under pot
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = 128; canvas.height = 128;
+            ctx.fillStyle = 'white'; ctx.fillRect(0,0,128,128);
+            ctx.fillStyle = 'black'; ctx.font = 'bold 30px Arial'; ctx.fillText("CODE", 25, 50);
+            ctx.fillStyle = 'red'; ctx.font = 'bold 40px Arial'; ctx.fillText("1045", 20, 100);
+            const codeTex = new THREE.CanvasTexture(canvas);
+            const codeTag = new THREE.Mesh(new THREE.CircleGeometry(0.3, 16), new THREE.MeshStandardMaterial({map: codeTex}));
+            codeTag.rotation.x = Math.PI/2; codeTag.position.y = -0.36;
+            flowerPot.add(codeTag);
+            flowerPot.position.set(0, -0.3, -8); // On the table
+            scene.add(flowerPot); interactables.push(flowerPot);
 
-            // 4. DOOR
-            door = new THREE.Mesh(new THREE.BoxGeometry(4, 5.5, 0.3), new THREE.MeshStandardMaterial({color: 0x5d4037}));
-            door.position.set(0, 0.75, 0); door.userData = { type: 'door', isOpen: false };
-            scene.add(door); colliders.push(door); interactables.push(door);
+            // 7. LIGHT SWITCHES (Red)
+            createSwitch(-2.5, 1, -0.1, 0); 
+            createSwitch(2.5, 1, 0.1, 1);
 
-            // 5. SWITCHES (Red color taaki andhere mein bhi dikhe)
-            createSwitch(-2, 1, -0.2, 1); // Switch for Room 1
-            createSwitch(2, 1, 0.2, 2);  // Switch for Room 2
-
-            // 6. FURNITURE
-            createFurniture(0, -1, -8, 4, 0.2, 2.5, 0x4a2c16); // R1 Table
-            createFurniture(6, -0.5, 10, 4, 2, 2, 0x222222); // R2 Sofa
-
-            // 7. TORCH
-            torch = new THREE.SpotLight(0xffffff, 40);
-            torch.angle = Math.PI/7; camera.add(torch); 
-            torch.target.position.set(0, 0, -1); camera.add(torch.target);
+            // 8. PLAYER TOOLS
+            torch = new THREE.SpotLight(0xffffff, 1.5, 35, Math.PI/6);
+            camera.add(torch); torch.target.position.set(0,0,-1); camera.add(torch.target);
 
             setupControls();
             animate();
         }
 
-        function createWall(x, y, z, w, h, mat, rotate=false) {
-            const wall = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
-            wall.position.set(x, y, z);
-            if(rotate) wall.rotation.y = Math.PI/2;
-            scene.add(wall);
-            const box = new THREE.Mesh(new THREE.BoxGeometry(rotate?0.5:w, h, rotate?w:0.5));
-            box.position.set(x, y, z); box.visible = false;
-            scene.add(box); colliders.push(box);
+        function addBrightLight(x, y, z, id) {
+            const light = new THREE.PointLight(0xffffff, 25, 25);
+            light.position.set(x, y, z); light.castShadow = true;
+            scene.add(light); roomLights.push(light);
+            const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.2), new THREE.MeshBasicMaterial({color: 0xffffcc}));
+            bulb.position.set(x, y, z); scene.add(bulb);
         }
 
-        function createSwitch(x, y, z, roomNum) {
-            const sw = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.4, 0.1), new THREE.MeshStandardMaterial({color: 0xff0000}));
-            sw.position.set(x, y, z); sw.userData = { type: 'switch', room: roomNum };
-            scene.add(sw); interactables.push(sw);
+        function createSolidWall(x, y, z, w, h, mat, rot=false) {
+            const wall = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
+            wall.position.set(x, y, z); if(rot) wall.rotation.y = Math.PI/2;
+            scene.add(wall);
+            const box = new THREE.Mesh(new THREE.BoxGeometry(rot?0.5:w, h, rot?w:0.5));
+            box.position.set(x, y, z); box.visible = false;
+            scene.add(box); colliders.push(box); // Add to collision list
         }
 
         function createFurniture(x, y, z, w, h, d, col) {
-            const obj = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshStandardMaterial({ color: col }));
-            obj.position.set(x, y, z); obj.castShadow = true; obj.receiveShadow = true;
-            scene.add(obj); colliders.push(obj);
+            const f = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshStandardMaterial({color: col}));
+            f.position.set(x, y, z); f.castShadow = true;
+            scene.add(f); colliders.push(f); // Make it solid
+        }
+
+        function createSwitch(x, y, z, rId) {
+            const sw = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.4, 0.1), new THREE.MeshStandardMaterial({color: 0xff0000}));
+            sw.position.set(x, y, z); sw.userData = { type: 'switch', id: rId };
+            scene.add(sw); interactables.push(sw);
         }
 
         function setupControls() {
             document.addEventListener('keydown', (e) => {
-                const key = e.key.toLowerCase();
-                if(key === 'w') moveF = 1; if(key === 's') moveF = -1;
-                if(key === 'a') moveR = -1; if(key === 'd') moveR = 1;
+                const k = e.key.toLowerCase();
+                if(k === 'w') moveF = 1; if(k === 's') moveF = -1;
+                if(k === 'a') moveR = -1; if(k === 'd') moveR = 1;
                 if(e.code === 'Space') isSprinting = true;
-                if(key === 'f') torch.visible = !torch.visible;
-                if(key === 'h') interact();
+                if(k === 'f') torch.visible = !torch.visible;
+                if(k === 'h') interact();
             });
             document.addEventListener('keyup', (e) => {
-                const key = e.key.toLowerCase();
-                if(['w','s'].includes(key)) moveF = 0; if(['a','d'].includes(key)) moveR = 0;
+                const k = e.key.toLowerCase();
+                if(['w','s'].includes(k)) moveF = 0; if(['a','d'].includes(k)) moveR = 0;
                 if(e.code === 'Space') isSprinting = false;
             });
             document.addEventListener('pointermove', (e) => {
-                if(document.pointerLockElement) {
+                if(isExamining) {
+                    flowerPot.rotation.y += e.movementX * 0.01;
+                    flowerPot.rotation.x += e.movementY * 0.01;
+                } else if(document.pointerLockElement) {
                     yaw.rotation.y -= e.movementX * 0.002;
                     pitch.rotation.x -= e.movementY * 0.002;
                     pitch.rotation.x = Math.max(-1.5, Math.min(1.5, pitch.rotation.x));
                 }
             });
-            document.addEventListener('mousedown', () => document.body.requestPointerLock());
+            document.addEventListener('mousedown', () => { if(!isExamining) document.body.requestPointerLock(); });
         }
 
         function interact() {
             interactables.forEach(obj => {
                 if(yaw.position.distanceTo(obj.position) < 4) {
-                    if(obj.userData.type === 'door') {
-                        obj.userData.isOpen = !obj.userData.isOpen;
-                        obj.position.x = obj.userData.isOpen ? 4 : 0;
-                        if(obj.userData.isOpen) colliders = colliders.filter(c => c !== door);
-                        else colliders.push(door);
-                        showMessage(obj.userData.isOpen ? "DOOR OPENED" : "DOOR CLOSED");
-                    }
-                    if(obj.userData.type === 'switch') {
-                        if(obj.userData.room === 1) {
-                            room1Light.visible = !room1Light.visible;
-                            document.getElementById('r1-stat').innerText = room1Light.visible ? "ON" : "OFF";
+                    if(obj === flowerPot) {
+                        if(!isExamining) {
+                            isExamining = true; moveF = moveR = 0;
+                            flowerPot.userData.oldPos = flowerPot.position.clone();
+                            flowerPot.userData.oldRot = flowerPot.rotation.clone();
+                            camera.add(flowerPot); flowerPot.position.set(0, 0, -1.2);
+                            hasCode = true; document.getElementById('evidence-status').innerText = "CODE 1045 ACQUIRED";
                         } else {
-                            room2Light.visible = !room2Light.visible;
-                            document.getElementById('r2-stat').innerText = room2Light.visible ? "ON" : "OFF";
+                            isExamining = false; scene.attach(flowerPot);
+                            flowerPot.position.copy(flowerPot.userData.oldPos);
+                            flowerPot.rotation.copy(flowerPot.userData.oldRot);
                         }
-                        showMessage("ROOM " + obj.userData.room + " LIGHT TOGGLED");
+                    } else if(obj.userData.type === 'door') {
+                        if(hasCode) {
+                            obj.userData.isOpen = !obj.userData.isOpen;
+                            obj.position.x = obj.userData.isOpen ? 4 : 0;
+                            if(obj.userData.isOpen) colliders = colliders.filter(c => c !== obj);
+                            else colliders.push(obj);
+                        } else { showPop("DOOR IS LOCKED. NEED CODE!"); }
+                    } else if(obj.userData.type === 'switch') {
+                        roomLights[obj.userData.id].visible = !roomLights[obj.userData.id].visible;
                     }
                 }
             });
         }
 
-        function showMessage(t) {
-            const m = document.getElementById('msg');
-            m.innerText = t; m.style.display = 'block';
-            setTimeout(() => m.style.display = 'none', 1500);
+        function showPop(t) {
+            const m = document.getElementById('msg'); m.innerText = t; m.style.display = "block";
+            setTimeout(() => m.style.display = "none", 2000);
         }
 
         function animate() {
             requestAnimationFrame(animate);
-            let speed = isSprinting ? 0.20 : 0.08;
-            if(moveF || moveR) {
-                const dir = new THREE.Vector3(moveR, 0, -moveF).normalize().applyQuaternion(yaw.quaternion);
-                const nextPos = yaw.position.clone().addScaledVector(dir, speed);
-                let canMove = true;
-                const pBox = new THREE.Box3().setFromCenterAndSize(nextPos, new THREE.Vector3(0.8, 4, 0.8));
-                for(let obj of colliders) { if(pBox.intersectsBox(new THREE.Box3().setFromObject(obj))) { canMove = false; break; } }
-                if(canMove) yaw.position.copy(nextPos);
+            if(!isExamining) {
+                let speed = isSprinting ? 0.22 : 0.09;
+                if(moveF || moveR) {
+                    const dir = new THREE.Vector3(moveR, 0, -moveF).normalize().applyQuaternion(yaw.quaternion);
+                    const nextPos = yaw.position.clone().addScaledVector(dir, speed);
+                    
+                    // COLLISION CHECK
+                    let canMove = true;
+                    const pBox = new THREE.Box3().setFromCenterAndSize(nextPos, new THREE.Vector3(1, 4, 1));
+                    for(let wall of colliders) {
+                        if(pBox.intersectsBox(new THREE.Box3().setFromObject(wall))) {
+                            canMove = false; break;
+                        }
+                    }
+                    if(canMove) yaw.position.copy(nextPos);
+                }
             }
             renderer.render(scene, camera);
         }
