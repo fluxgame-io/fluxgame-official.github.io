@@ -1,137 +1,163 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>DETECTIVE KABIR: PRO MOVEMENT</title>
+    <title>DETECTIVE KABIR: EVIDENCE HUNT</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #000; }
-        #overlay {
-            position: fixed; bottom: 20px; left: 20px; color: #00f2ff;
-            font-family: 'Courier New', monospace; font-size: 14px; pointer-events: none;
-        }
-        #crosshair {
-            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            color: white; font-size: 20px; pointer-events: none; opacity: 0.5;
+        body { margin: 0; overflow: hidden; background: #000; cursor: crosshair; }
+        #ui { position: fixed; bottom: 20px; left: 20px; color: #00f2ff; font-family: 'Courier New', monospace; z-index: 100; pointer-events: none; }
+        #crosshair { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-size: 20px; z-index: 100; }
+        #examine-overlay { 
+            position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: none; 
+            justify-content: center; align-items: center; z-index: 1000; flex-direction: column;
         }
     </style>
 </head>
 <body>
     <div id="crosshair">+</div>
-    <div id="overlay">
-        KABIR: SEARCHING FOR EVIDENCE...<br>
-        [W,A,S,D] CHALNA | [SHIFT] BHAGNA | [F] TORCH | [H] PICK OBJECT
+    <div id="ui">
+        KABIR: SEARCHING... <br>
+        [WASD] MOVE | [SHIFT] SPRINT | [F] LIGHT | [H] EXAMINE OBJECT (When Near)
+    </div>
+    
+    <div id="examine-overlay">
+        <h2 style="color: #00f2ff;">EXAMINING OBJECT...</h2>
+        <p style="color: #fff;">Mouse ghumao check karne ke liye | [ESCAPE] Back</p>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
     <script>
-        let scene, camera, renderer, torch, ambientLight;
-        let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false, isRunning = false;
-        let velocity = new THREE.Vector3();
-        let torchOn = true;
+        let scene, camera, renderer, torch, room;
+        let moveF = false, moveB = false, moveL = false, moveR = false, isRunning = false;
+        let isExamining = false;
+        let examineObject = null;
 
         init();
 
         function init() {
             scene = new THREE.Scene();
+            // 1. FOG: Taaki beam hawa mein dikhe
+            scene.fog = new THREE.FogExp2(0x000000, 0.05);
+
             camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-            
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.shadowMap.enabled = true;
             document.body.appendChild(renderer.domElement);
 
-            // GROUND & WALLS (Ab thoda bada area)
-            const floorGeo = new THREE.PlaneGeometry(100, 100);
-            const wallMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 1 });
-            const floor = new THREE.Mesh(floorGeo, wallMat);
+            // 2. FLOOR & WALLS WITH TEXTURE (Maze ke liye)
+            const loader = new THREE.TextureLoader();
+            // Temporary checkerboard taaki movement dikhe
+            const floorTex = loader.load('https://threejs.org/examples/textures/grid.png');
+            floorTex.wrapS = floorTex.wrapT = THREE.RepeatWrapping;
+            floorTex.repeat.set(20, 20);
+
+            const floorMat = new THREE.MeshStandardMaterial({ map: floorTex, color: 0x222222 });
+            const floor = new THREE.Mesh(new THREE.PlaneGeometry(100, 100), floorMat);
             floor.rotation.x = -Math.PI / 2;
             floor.position.y = -2;
             floor.receiveShadow = true;
             scene.add(floor);
 
-            // BOXES (Objects to examine)
-            for(let i=0; i<5; i++) {
-                const box = new THREE.Mesh(new THREE.BoxGeometry(1, 2, 1), new THREE.MeshStandardMaterial({color: 0x333333}));
-                box.position.set(Math.random()*10 - 5, -1, -Math.random()*20);
-                box.castShadow = true;
-                scene.add(box);
-            }
+            // 3. THE MYSTERY OBJECT (Temporary Evidence)
+            const boxGeo = new THREE.BoxGeometry(1, 1, 1);
+            // Box par kuch likhne ke liye canvas texture
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = 256; canvas.height = 256;
+            ctx.fillStyle = '#8b4513'; ctx.fillRect(0,0,256,256);
+            ctx.fillStyle = 'white'; ctx.font = '30px Arial';
+            ctx.fillText("CODE: 4921", 50, 130);
+            
+            const boxTex = new THREE.CanvasTexture(canvas);
+            const boxMat = new THREE.MeshStandardMaterial({ map: boxTex });
+            examineObject = new THREE.Mesh(boxGeo, boxMat);
+            examineObject.position.set(0, -1.5, -5);
+            examineObject.castShadow = true;
+            scene.add(examineObject);
 
-            // POWERFUL FLASHLIGHT (Intensity Badha di)
-            torch = new THREE.SpotLight(0xffffff, 15); // High Intensity
-            torch.angle = Math.PI / 8;
-            torch.penumbra = 0.5;
+            // 4. POWERFUL LIGHT
+            torch = new THREE.SpotLight(0xffffff, 20);
+            torch.angle = Math.PI / 6;
+            torch.penumbra = 0.4;
             torch.decay = 1.5;
-            torch.distance = 50;
+            torch.distance = 40;
             torch.castShadow = true;
             scene.add(torch);
             scene.add(torch.target);
 
-            // Halka sa ambient light (taaki bilkul zero visibility na ho)
-            ambientLight = new THREE.AmbientLight(0x050505); 
-            scene.add(ambientLight);
+            // Controls
+            document.addEventListener('keydown', (e) => {
+                if(e.code === 'KeyW') moveF = true;
+                if(e.code === 'KeyS') moveB = true;
+                if(e.code === 'KeyA') moveL = true;
+                if(e.code === 'KeyD') moveR = true;
+                if(e.code === 'ShiftLeft') isRunning = true;
+                if(e.code === 'KeyF') torch.intensity = torch.intensity > 0 ? 0 : 20;
+                if(e.code === 'KeyH') tryExamine();
+                if(e.code === 'Escape') stopExamine();
+            });
+            document.addEventListener('keyup', (e) => {
+                if(e.code === 'KeyW') moveF = false;
+                if(e.code === 'KeyS') moveB = false;
+                if(e.code === 'KeyA') moveL = false;
+                if(e.code === 'KeyD') moveR = false;
+                if(e.code === 'ShiftLeft') isRunning = false;
+            });
 
-            camera.position.set(0, 0, 0);
-
-            // CONTROLS
-            const onKeyDown = (e) => {
-                if (e.code === 'KeyW') moveForward = true;
-                if (e.code === 'KeyS') moveBackward = true;
-                if (e.code === 'KeyA') moveLeft = true;
-                if (e.code === 'KeyD') moveRight = true;
-                if (e.code === 'ShiftLeft') isRunning = true;
-                if (e.code === 'KeyF') toggleTorch();
-            };
-            const onKeyUp = (e) => {
-                if (e.code === 'KeyW') moveForward = false;
-                if (e.code === 'KeyS') moveBackward = false;
-                if (e.code === 'KeyA') moveLeft = false;
-                if (e.code === 'KeyD') moveRight = false;
-                if (e.code === 'ShiftLeft') isRunning = false;
-            };
-            document.addEventListener('keydown', onKeyDown);
-            document.addEventListener('keyup', onKeyUp);
-
-            // MOUSE LOOK
             document.addEventListener('mousemove', (e) => {
-                camera.rotation.y -= e.movementX * 0.002;
-                camera.rotation.x -= e.movementY * 0.002;
-                
-                // Torch follows camera
-                torch.position.copy(camera.position);
-                let vector = new THREE.Vector3(0, 0, -1);
-                vector.applyQuaternion(camera.quaternion);
-                torch.target.position.copy(camera.position.clone().add(vector));
+                if(isExamining) {
+                    examineObject.rotation.y += e.movementX * 0.01;
+                    examineObject.rotation.x += e.movementY * 0.01;
+                } else {
+                    camera.rotation.y -= e.movementX * 0.002;
+                    camera.rotation.x -= e.movementY * 0.002;
+                }
             });
 
-            // Lock Mouse for better control
-            document.addEventListener('click', () => {
-                document.body.requestPointerLock();
-            });
+            document.addEventListener('click', () => { document.body.requestPointerLock(); });
 
             animate();
         }
 
-        function toggleTorch() {
-            torchOn = !torchOn;
-            torch.intensity = torchOn ? 15 : 0;
+        function tryExamine() {
+            // Check distance
+            const dist = camera.position.distanceTo(examineObject.position);
+            if(dist < 4) {
+                isExamining = true;
+                document.getElementById('examine-overlay').style.display = 'flex';
+                examineObject.oldPos = examineObject.position.clone();
+                // Screen ke center mein le aao zoom karke
+                examineObject.position.set(0, 0, -2);
+                camera.position.set(0,0,0);
+                camera.lookAt(examineObject.position);
+            }
+        }
+
+        function stopExamine() {
+            isExamining = false;
+            document.getElementById('examine-overlay').style.display = 'none';
+            examineObject.position.copy(examineObject.oldPos);
         }
 
         function animate() {
             requestAnimationFrame(animate);
+            if(!isExamining) {
+                let speed = isRunning ? 0.15 : 0.07;
+                if(moveF) camera.translateZ(-speed);
+                if(moveB) camera.translateZ(speed);
+                if(moveL) camera.translateX(-speed);
+                if(moveR) camera.translateX(speed);
+                
+                // Keep Kabir on the ground
+                camera.position.y = -1 + Math.sin(Date.now() * 0.005) * 0.05;
 
-            // MOVEMENT LOGIC
-            let speed = isRunning ? 0.15 : 0.07;
-            if (moveForward) camera.translateZ(-speed);
-            if (moveBackward) camera.translateZ(speed);
-            if (moveLeft) camera.translateX(-speed);
-            if (moveRight) camera.translateX(speed);
-
-            // Bodycam Bobbing (Walking feel)
-            if (moveForward || moveBackward || moveLeft || moveRight) {
-                camera.position.y = Math.sin(Date.now() * (isRunning ? 0.01 : 0.005)) * 0.1;
+                // Torch Follow
+                torch.position.copy(camera.position);
+                let vector = new THREE.Vector3(0, 0, -1);
+                vector.applyQuaternion(camera.quaternion);
+                torch.target.position.copy(camera.position.clone().add(vector));
             }
-
             renderer.render(scene, camera);
         }
     </script>
