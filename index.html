@@ -1,199 +1,86 @@
-       <!DOCTYPE html>
-<html lang="hi">
+<!DOCTYPE html>
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, orientation=landscape">
-    <title>DETECTIVE KABIR: THE CRIME FILES</title>
+    <title>3D BODYCAM DEMO - KABIR</title>
     <style>
-        :root { --neon: #00f2ff; --danger: #ff3e3e; --gold: #ffd700; --bg: #050505; }
-        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-        body { background: var(--bg); color: white; font-family: 'Segoe UI', sans-serif; overflow: hidden; }
-
-        /* PHASE 1: LOADING PAGE */
-        #loader { position: fixed; inset: 0; background: #000; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 9999; }
-        .load-bar { width: 250px; height: 4px; background: #222; margin-top: 20px; overflow: hidden; border-radius: 10px; }
-        .load-progress { width: 0%; height: 100%; background: var(--neon); animation: load 2.5s forwards; }
-        @keyframes load { 100% { width: 100%; } }
-
-        /* PHASE 2: WEBSITE HUB (3 OPTIONS) */
-        #website-hub { display: none; height: 100vh; text-align: center; padding-top: 50px; }
-        .card-container { display: flex; justify-content: center; gap: 30px; padding: 50px; flex-wrap: wrap; }
-        .card { background: #111; border: 1px solid #333; width: 220px; padding: 30px; border-radius: 20px; cursor: pointer; transition: 0.3s; }
-        .card:hover { border-color: var(--neon); transform: translateY(-10px); box-shadow: 0 0 20px rgba(0,242,255,0.2); }
-
-        /* PHASE 3: CRIME FILES (THUMBNAIL) */
-        #game-selection { display: none; height: 100vh; text-align: center; padding: 40px; }
-        .thumbnail { width: 320px; border: 3px solid #333; border-radius: 15px; overflow: hidden; cursor: pointer; margin: 30px auto; transition: 0.4s; }
-        .thumbnail:hover { border-color: var(--neon); transform: scale(1.05); }
-        .thumbnail img { width: 100%; height: 180px; object-fit: cover; filter: grayscale(50%); transition: 0.4s; }
-        .thumbnail:hover img { filter: grayscale(0%); }
-
-        /* PHASE 4 & 5: THE GAME (LANDSCAPE & FLASHLIGHT) */
-        #game-area { display: none; height: 100vh; width: 100vw; position: relative; background: url('https://images.unsplash.com/photo-1513694203232-719a280e022f?q=80&w=2069') no-repeat center; background-size: cover; }
-        #flashlight-overlay { 
-            position: absolute; inset: 0; pointer-events: none; z-index: 10;
-            background: radial-gradient(circle 180px at var(--x, 50%) var(--y, 50%), transparent 0%, rgba(0,0,0,0.6) 60%, rgba(0,0,0,0.98) 100%);
+        body { margin: 0; overflow: hidden; background: #000; }
+        #instructions {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            color: white; font-family: sans-serif; text-align: center;
+            background: rgba(0,0,0,0.8); padding: 20px; border: 1px solid #00f2ff;
         }
-
-        /* CLIMAX & DIALOGUE */
-        #climax-ui { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 100; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
-        .dialogue-box { background: rgba(255,255,255,0.1); padding: 20px; border-left: 5px solid var(--neon); margin: 20px; max-width: 600px; }
-        
-        /* BUTTONS */
-        .btn { background: none; border: 2px solid var(--neon); color: var(--neon); padding: 12px 30px; margin: 10px; cursor: pointer; border-radius: 5px; font-weight: bold; text-transform: uppercase; }
-        .btn:hover { background: var(--neon); color: #000; }
-        .btn-danger { border-color: var(--danger); color: var(--danger); }
-        .btn-danger:hover { background: var(--danger); color: #fff; }
-
-        /* FINAL STAMPS */
-        #victory-screen { display: none; position: fixed; inset: 0; background: #000; z-index: 200; flex-direction: column; justify-content: center; align-items: center; }
-        .stamp { font-size: 5rem; font-weight: 900; border: 12px solid var(--danger); color: var(--danger); padding: 10px 40px; transform: rotate(-15deg); opacity: 0; animation: stampAnim 0.5s forwards; }
-        @keyframes stampAnim { 0% { transform: scale(5); opacity: 0; } 100% { transform: scale(1) rotate(-15deg); opacity: 1; } }
-
-        /* ROTATE WARNING */
-        @media screen and (orientation: portrait) { #rotate-msg { display: flex !important; } }
-        #rotate-msg { position: fixed; inset: 0; background: #000; z-index: 10000; display: none; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
     </style>
 </head>
 <body>
-
-    <div id="rotate-msg"><h1>🔄 ROTATE YOUR PHONE</h1><p>Landscape mode mein hi investigation shuru hogi.</p></div>
-
-    <div id="loader">
-        <h1 style="letter-spacing: 10px; color: var(--neon);">DETECTIVE KABIR</h1>
-        <p style="color: #555; margin-top: 5px;">FLUX ENGINE INITIALIZING...</p>
-        <div class="load-bar"><div class="load-progress"></div></div>
+    <div id="instructions">
+        <h1>KABIR 3D DEMO</h1>
+        <p>Mouse ghumao dekhne ke liye<br>Click karo start karne ke liye</p>
     </div>
 
-    <div id="website-hub">
-        <h1 style="color: var(--neon); margin-bottom: 20px;">FLUX INTERACTIVE HUB</h1>
-        <div class="card-container">
-            <div class="card"><h3>🕹️ ARCADE</h3><p style="color:#444">Coming Soon</p></div>
-            <div class="card" style="border-color: var(--neon);" onclick="showCrimeFiles()">
-                <h3>🕵️ CRIME FILES</h3><p>Active Cases</p>
-            </div>
-            <div class="card"><h3>🚀 ACTION</h3><p style="color:#444">Locked</p></div>
-        </div>
-    </div>
-
-    <div id="game-selection">
-        <h2 style="color: var(--neon);">SELECT MISSION</h2>
-        <div class="thumbnail" onclick="startGame()">
-            <img src="https://images.unsplash.com/photo-1585338927000-1c787b17eb5e?q=80&w=400" alt="Case 01 Thumbnail">
-            <div style="background: #111; padding: 15px;">
-                <h3 style="color: var(--neon);">CASE 01: THE POISON HOUSE</h3>
-                <p style="font-size: 0.8rem; color: #888;">Kabir enters the suspect's house...</p>
-            </div>
-        </div>
-        <button class="btn" onclick="goHome()">BACK</button>
-    </div>
-
-    <div id="game-area" onmousemove="moveLight(event)" ontouchmove="moveLight(event.touches[0])">
-        <div id="flashlight-overlay"></div>
-        <div style="position: absolute; top: 20px; left: 20px; z-index: 50; background: rgba(0,0,0,0.5); padding: 10px;">
-            <p id="clue-tracker">SURAG: 0/3</p>
-        </div>
-
-        <div id="clue1" style="position: absolute; top: 30%; left: 20%; width: 50px; height: 50px; cursor: pointer;" onclick="foundClue(1)"></div>
-        <div id="clue2" style="position: absolute; top: 60%; left: 70%; width: 50px; height: 50px; cursor: pointer;" onclick="foundClue(2)"></div>
-        <div id="clue3" style="position: absolute; top: 20%; left: 85%; width: 50px; height: 50px; cursor: pointer;" onclick="foundClue(3)"></div>
-    </div>
-
-    <div id="climax-ui">
-        <h2 style="color: var(--danger); margin-bottom: 10px;">CONFRONTATION</h2>
-        <div class="dialogue-box" id="dialogue-text">
-            Kabir: "Khel khatam! Apne hath upar karo!"
-        </div>
-        <div id="final-choices" style="display: none;">
-            <button class="btn" onclick="finish('ARRESTED')">✋ WAIT (SURRENDER)</button>
-            <button class="btn btn-danger" onclick="finish('ELIMINATED')">🔫 SHOOT (NO SURRENDER)</button>
-        </div>
-    </div>
-
-    <div id="victory-screen">
-        <div id="final-stamp" class="stamp">ARRESTED</div>
-        <h1 id="mission-status" style="margin-top: 30px; letter-spacing: 5px; color: var(--gold);">MISSION ACCOMPLISHED</h1>
-        <button class="btn" style="margin-top: 50px;" onclick="location.reload()">BACK TO HUB</button>
-    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
     <script>
-        let clues = 0;
-        const kabirSpeaks = (t) => { const m = new SpeechSynthesisUtterance(t); m.lang='hi-IN'; window.speechSynthesis.speak(m); };
+        let scene, camera, renderer, flashlight;
 
-        // 1. Loading sequence
-        setTimeout(() => {
-            document.getElementById('loader').style.display = 'none';
-            document.getElementById('website-hub').style.display = 'block';
-        }, 3000);
+        function init() {
+            // 1. Scene aur Camera (Bodycam Perspective)
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 
-        function showCrimeFiles() {
-            document.getElementById('website-hub').style.display = 'none';
-            document.getElementById('game-selection').style.display = 'block';
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            document.body.appendChild(renderer.domElement);
+
+            // 2. Kamra Banana (Box Geometry)
+            const roomSize = 20;
+            const geometry = new THREE.BoxGeometry(roomSize, 10, roomSize);
+            // Texture ki jagah dark walls
+            const material = new THREE.MeshStandardMaterial({ color: 0x111111, side: THREE.BackSide });
+            const room = new THREE.Mesh(geometry, material);
+            scene.add(room);
+
+            // 3. Realistic Flashlight (Spotlight)
+            flashlight = new THREE.SpotLight(0xffffff, 2);
+            flashlight.angle = Math.PI / 6; // Light ka failao
+            flashlight.penumbra = 0.3; // Soft edges
+            flashlight.decay = 2;
+            flashlight.distance = 50;
+            
+            scene.add(flashlight);
+            scene.add(flashlight.target);
+
+            camera.position.set(0, 0, 5);
+
+            // Control Logic
+            document.addEventListener('mousemove', (e) => {
+                const x = (e.clientX / window.innerWidth) * 2 - 1;
+                const y = -(e.clientY / window.innerHeight) * 2 + 1;
+                
+                // Camera movement (Bodycam shake effect)
+                camera.rotation.y = -x * 0.5;
+                camera.rotation.x = y * 0.5;
+
+                // Flashlight follow
+                flashlight.position.copy(camera.position);
+                const vector = new THREE.Vector3(x, y, -1).unproject(camera);
+                flashlight.target.position.copy(vector);
+            });
+
+            animate();
         }
 
-        function goHome() {
-            document.getElementById('game-selection').style.display = 'none';
-            document.getElementById('website-hub').style.display = 'block';
+        function animate() {
+            requestAnimationFrame(animate);
+            // Halka bodycam bobbing (Sans lene ki feeling)
+            camera.position.y = Math.sin(Date.now() * 0.002) * 0.05;
+            renderer.render(scene, camera);
         }
 
-        // 2. Game Start
-        function startGame() {
-            document.getElementById('game-selection').style.display = 'none';
-            document.getElementById('game-area').style.display = 'block';
-            kabirSpeaks("Kabir ghar ke andar pahunch chuka hai. Flashlight se surag dhundna shuru karo.");
-        }
-
-        // 3. Realistic Flashlight
-        function moveLight(e) {
-            const overlay = document.getElementById('flashlight-overlay');
-            overlay.style.setProperty('--x', e.clientX + 'px');
-            overlay.style.setProperty('--y', e.clientY + 'px');
-        }
-
-        // 4. Investigation
-        function foundClue(num) {
-            clues++;
-            document.getElementById('clue-tracker').innerText = `SURAG: ${clues}/3`;
-            document.getElementById('clue' + num).style.display = 'none';
-            kabirSpeaks("Ek aur surag mila.");
-            if(clues === 3) startClimax();
-        }
-
-        // 5. Climax Dialogue
-        function startClimax() {
-            document.getElementById('climax-ui').style.display = 'flex';
-            setTimeout(() => {
-                document.getElementById('dialogue-text').innerText = "Katil: 'Tumhe kya laga Kabir? Tum mujhe itni asani se pakad loge?'";
-                kabirSpeaks("Katil keh raha hai: Tumhe kya laga Kabir? Tum mujhe itni asani se pakad loge?");
-            }, 3000);
-            setTimeout(() => {
-                document.getElementById('dialogue-text').innerText = "Kabir: 'Tumhare paas koi rasta nahi hai. Surrender karo ya fir...'";
-                kabirSpeaks("Surrender karo ya fir...");
-                document.getElementById('final-choices').style.display = 'block';
-            }, 6000);
-        }
-
-        // 6. Finish Logic
-        function finish(type) {
-            document.getElementById('climax-ui').style.display = 'none';
-            document.getElementById('victory-screen').style.display = 'flex';
-            const stamp = document.getElementById('final-stamp');
-            const status = document.getElementById('mission-status');
-
-            if(type === 'ARRESTED') {
-                stamp.innerText = "ARRESTED";
-                stamp.style.borderColor = "var(--neon)";
-                stamp.style.color = "var(--neon)";
-                status.innerText = "MISSION ACCOMPLISHED";
-                kabirSpeaks("Gunehgaar ne surrender kar diya. Mission Accomplished.");
-            } else {
-                stamp.innerText = "ELIMINATED";
-                stamp.style.borderColor = "var(--danger)";
-                stamp.style.color = "var(--danger)";
-                status.innerText = "CASE SOLVED";
-                kabirSpeaks("Gunehgaar ne bhagne ki koshish ki. Case Solved.");
-            }
-        }
+        window.addEventListener('click', () => {
+            document.getElementById('instructions').style.display = 'none';
+            init();
+        });
     </script>
 </body>
 </html>
