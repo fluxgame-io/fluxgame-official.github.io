@@ -2,32 +2,36 @@
 <html>
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>KABIR: PRO LIGHTING CONTROL</title>
+    <title>KABIR: INTERACTION & LIGHTING</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; font-family: 'Courier New', monospace; touch-action: none; }
         #crosshair { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #fff; font-size: 24px; pointer-events: none; z-index: 100; }
-        .hud { position: fixed; top: 10px; left: 10px; color: #00f2ff; background: rgba(0,0,0,0.6); padding: 10px; z-index: 100; font-size: 12px; pointer-events: none; border-left: 3px solid #00f2ff; }
+        .hud { position: fixed; top: 10px; left: 10px; color: #00f2ff; background: rgba(0,0,0,0.7); padding: 12px; z-index: 100; font-size: 13px; pointer-events: none; border-left: 4px solid #00f2ff; }
         
         /* Mobile Buttons */
-        .mobile-ui { position: fixed; bottom: 20px; right: 20px; display: none; gap: 10px; z-index: 200; }
-        .btn { width: 65px; height: 65px; background: rgba(0,242,255,0.2); border: 2px solid #00f2ff; border-radius: 50%; color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; pointer-events: auto; }
+        .mobile-ui { position: fixed; bottom: 30px; right: 30px; display: none; gap: 15px; z-index: 200; }
+        .btn { width: 70px; height: 70px; background: rgba(0,242,255,0.2); border: 2px solid #00f2ff; border-radius: 50%; color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; pointer-events: auto; font-size: 18px; }
         
+        #examine-msg { position: fixed; top: 20%; width: 100%; text-align: center; color: #00f2ff; display: none; z-index: 1000; font-weight: bold; text-shadow: 2px 2px #000; }
+
         @media (max-width: 900px) { .mobile-ui { display: flex; } }
     </style>
 </head>
 <body>
 
     <div id="crosshair">+</div>
+    <div id="examine-msg">EXAMINING EVIDENCE<br><span style="font-size: 12px; color: white;">Ghumane ke liye Mouse/Touch use karein | [ESC] wapas</span></div>
+    
     <div id="hud" class="hud">
-        <b>KABIR SENSOR SYSTEM</b><br>
+        <b>KABIR INVESTIGATION SYSTEM</b><br>
         LIGHT: <span id="light-val">HIGH</span><br>
-        PC: [TAB] Intensity | [F] On/Off<br>
-        MOB: Auto-Focus Enabled
+        [WASD] Chalna | [TAB] Intensity<br>
+        [H] Uthana / Examine | [ESC] Chhodna
     </div>
 
     <div class="mobile-ui">
-        <div class="btn" id="btn-f">OFF</div>
-        <div class="btn" id="btn-h">H</div>
+        <div class="btn" id="btn-f">F</div>
+        <div class="btn" id="btn-h" style="background: rgba(255,165,0,0.3); border-color: orange;">H</div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -35,16 +39,16 @@
     <script>
         let scene, camera, renderer, torch, raycaster, examineObject;
         let yaw = new THREE.Object3D(), pitch = new THREE.Object3D();
-        let moveF = 0, moveR = 0;
-        let lightModes = [5, 20, 50]; // Low, Medium, High
-        let currentMode = 2; // Default High
+        let moveF = 0, moveR = 0, isExamining = false;
+        let lightModes = [10, 30, 80]; // Low, Med, High
+        let currentMode = 2;
         let isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
         init();
 
         function init() {
             scene = new THREE.Scene();
-            scene.fog = new THREE.FogExp2(0x000000, 0.15);
+            scene.fog = new THREE.FogExp2(0x000000, 0.12);
             camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
             
             yaw.add(pitch);
@@ -56,42 +60,54 @@
             renderer.shadowMap.enabled = true;
             document.body.appendChild(renderer.domElement);
 
-            // Ground & Object
-            const floor = new THREE.Mesh(new THREE.PlaneGeometry(100, 100), new THREE.MeshStandardMaterial({ color: 0x111111 }));
+            // Ground
+            const floor = new THREE.Mesh(new THREE.PlaneGeometry(100, 100), new THREE.MeshStandardMaterial({ color: 0x151515 }));
             floor.rotation.x = -Math.PI/2; floor.position.y = -2; floor.receiveShadow = true;
             scene.add(floor);
 
-            // Object to examine
-            const objGeo = new THREE.BoxGeometry(1, 1, 1);
-            const objMat = new THREE.MeshStandardMaterial({ color: 0x555555 });
-            examineObject = new THREE.Mesh(objGeo, objMat);
-            examineObject.position.set(0, -1, -6);
+            // 1. OBJECT CREATION (Letter with Code)
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = 512; canvas.height = 512;
+            ctx.fillStyle = '#f0e68c'; ctx.fillRect(0,0,512,512);
+            ctx.fillStyle = 'black'; ctx.font = 'bold 35px Arial';
+            ctx.fillText("SECRET FILE: #99", 50, 100);
+            ctx.fillText("LOCATION: BASEMENT", 50, 200);
+            ctx.fillStyle = 'red'; ctx.fillText("CODE: 7734", 50, 350);
+            
+            const tex = new THREE.CanvasTexture(canvas);
+            examineObject = new THREE.Mesh(
+                new THREE.BoxGeometry(0.8, 1.1, 0.05),
+                new THREE.MeshStandardMaterial({ map: tex })
+            );
+            examineObject.position.set(2, -1.2, -5);
+            examineObject.castShadow = true;
             scene.add(examineObject);
 
-            // FLASHLIGHT
+            // 2. TORCH
             torch = new THREE.SpotLight(0xffffff, lightModes[currentMode]);
-            torch.angle = Math.PI/7; torch.penumbra = 0.6; torch.castShadow = true;
+            torch.angle = Math.PI/7; torch.penumbra = 0.5; torch.castShadow = true;
             camera.add(torch);
             torch.target.position.set(0, 0, -1);
             camera.add(torch.target);
 
             raycaster = new THREE.Raycaster();
-
             setupControls();
             animate();
         }
 
         function setupControls() {
-            // PC CONTROLS
             document.addEventListener('keydown', (e) => {
                 if(e.key === 'Tab') {
                     e.preventDefault();
                     currentMode = (currentMode + 1) % lightModes.length;
                     updateLightUI();
                 }
-                if(e.key === 'f') torch.visible = !torch.visible;
                 if(e.key === 'w') moveF = 1; if(e.key === 's') moveF = -1;
                 if(e.key === 'a') moveR = -1; if(e.key === 'd') moveR = 1;
+                if(e.key === 'h' || e.key === 'H') tryExamine();
+                if(e.key === 'Escape') stopExamine();
+                if(e.key === 'f') torch.visible = !torch.visible;
             });
 
             document.addEventListener('keyup', (e) => {
@@ -99,29 +115,51 @@
                 if(['a','d'].includes(e.key)) moveR = 0;
             });
 
-            // MOUSE WHEEL INTENSITY
-            document.addEventListener('wheel', (e) => {
-                if(e.deltaY < 0) currentMode = Math.min(2, currentMode + 1);
-                else currentMode = Math.max(0, currentMode - 1);
-                updateLightUI();
-            });
-
-            // LOOK CONTROL (PC & MOBILE)
+            // Examine Rotate
             document.addEventListener('pointermove', (e) => {
-                if(document.pointerLockElement || isMobile) {
+                if(isExamining) {
+                    examineObject.rotation.y += e.movementX * 0.01;
+                    examineObject.rotation.x += e.movementY * 0.01;
+                } else if(document.pointerLockElement || isMobile) {
                     yaw.rotation.y -= e.movementX * 0.003;
                     pitch.rotation.x -= e.movementY * 0.003;
                     pitch.rotation.x = Math.max(-1.5, Math.min(1.5, pitch.rotation.x));
                 }
             });
 
-            document.addEventListener('click', () => { if(!isMobile) document.body.requestPointerLock(); });
+            document.addEventListener('click', () => { if(!isMobile && !isExamining) document.body.requestPointerLock(); });
             
-            // MOBILE BUTTONS
-            document.getElementById('btn-f').onclick = () => {
-                torch.visible = !torch.visible;
-                document.getElementById('btn-f').innerText = torch.visible ? "ON" : "OFF";
-            };
+            // Mobile Buttons
+            document.getElementById('btn-h').onclick = tryExamine;
+            document.getElementById('btn-f').onclick = () => { torch.visible = !torch.visible; };
+        }
+
+        function tryExamine() {
+            const dist = yaw.position.distanceTo(examineObject.position);
+            if(dist < 4) {
+                isExamining = true;
+                document.getElementById('examine-msg').style.display = 'block';
+                examineObject.userData.oldPos = examineObject.position.clone();
+                examineObject.userData.oldRot = examineObject.rotation.clone();
+                
+                // Camera ke samne lao
+                camera.add(examineObject);
+                examineObject.position.set(0, 0, -1.2);
+                examineObject.rotation.set(0, 0, 0);
+                
+                // Light boost for reading
+                torch.intensity = 50; 
+            }
+        }
+
+        function stopExamine() {
+            if(!isExamining) return;
+            isExamining = false;
+            document.getElementById('examine-msg').style.display = 'none';
+            scene.attach(examineObject);
+            examineObject.position.copy(examineObject.userData.oldPos);
+            examineObject.rotation.copy(examineObject.userData.oldRot);
+            updateLightUI();
         }
 
         function updateLightUI() {
@@ -133,21 +171,12 @@
         function animate() {
             requestAnimationFrame(animate);
 
-            // MOBILE AUTO-FOCUS LOGIC
-            if(isMobile && torch.visible) {
-                raycaster.setFromCamera(new THREE.Vector2(0,0), camera);
-                const intersects = raycaster.intersectObjects(scene.children);
-                if(intersects.length > 0 && intersects[0].distance < 8) {
-                    torch.intensity = 60; // Auto-boost near objects
-                } else {
-                    torch.intensity = 20; // Normal
-                }
+            if(!isExamining) {
+                const dir = new THREE.Vector3(moveR, 0, -moveF).normalize();
+                dir.applyQuaternion(yaw.quaternion);
+                yaw.position.addScaledVector(dir, 0.1);
+                pitch.position.y = Math.sin(Date.now() * 0.01) * 0.04; // Walk
             }
-
-            // Move
-            const dir = new THREE.Vector3(moveR, 0, -moveF).normalize();
-            dir.applyQuaternion(yaw.quaternion);
-            yaw.position.addScaledVector(dir, 0.1);
 
             renderer.render(scene, camera);
         }
