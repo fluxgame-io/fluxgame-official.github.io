@@ -1,134 +1,109 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <title>KABIR: INTERACTION FIXED</title>
+    <title>DETECTIVE KABIR - FINAL</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #000; font-family: 'Courier New', monospace; }
-        #crosshair { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #fff; font-size: 24px; z-index: 100; pointer-events: none; }
-        #interact-prompt { position: fixed; top: 60%; width: 100%; text-align: center; color: yellow; font-size: 20px; font-weight: bold; display: none; z-index: 100; text-shadow: 2px 2px #000; }
-        #hud { position: fixed; bottom: 20px; left: 20px; color: #00f2ff; background: rgba(0,0,0,0.8); padding: 15px; border: 1px solid #00f2ff; z-index: 100; }
-        #menu { position: fixed; width: 100%; height: 100%; background: #000; z-index: 1000; display: flex; flex-direction: column; justify-content: center; align-items: center; color: #00f2ff; }
-        .btn { border: 2px solid #00f2ff; background: none; color: #00f2ff; padding: 15px 30px; margin: 10px; cursor: pointer; font-size: 20px; }
+        body { margin: 0; background: #000; color: #00f2ff; font-family: 'Courier New', monospace; overflow: hidden; }
+        #screen { width: 100vw; height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+        
+        /* Loading Screen */
+        #loading { position: fixed; width: 100%; height: 100%; background: #000; z-index: 100; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+        .bar { width: 300px; height: 10px; border: 1px solid #00f2ff; margin-top: 20px; }
+        .progress { width: 0%; height: 100%; background: #00f2ff; transition: 0.1s; }
+
+        /* Menu */
+        #menu { display: none; text-align: center; }
+        .btn { border: 2px solid #00f2ff; padding: 15px 40px; margin: 10px; cursor: pointer; display: block; width: 200px; color: #00f2ff; background: none; font-weight: bold; }
+        .btn:hover { background: #00f2ff; color: #000; }
+
+        /* Game Area */
+        #game { display: none; width: 800px; height: 500px; background: #222; border: 5px solid #444; position: relative; overflow: hidden; }
+        #player { width: 40px; height: 40px; background: #00f2ff; position: absolute; top: 400px; left: 380px; border-radius: 5px; box-shadow: 0 0 10px #00f2ff; }
+        .obj { position: absolute; background: orange; border: 2px solid #fff; }
+        #door { width: 100px; height: 15px; background: red; top: 50px; left: 350px; text-align: center; color: white; font-size: 10px; }
+        #hud { position: fixed; top: 10px; left: 10px; background: rgba(0,0,0,0.8); padding: 10px; border: 1px solid #00f2ff; }
     </style>
 </head>
 <body>
 
+<div id="loading">
+    <h1>KABIR: THE SILENT WITNESS</h1>
+    <div class="bar"><div class="progress" id="bar"></div></div>
+    <p>LOADING ASSETS...</p>
+</div>
+
+<div id="screen">
     <div id="menu">
-        <h1>DETECTIVE KABIR</h1>
+        <h1 style="font-size: 50px;">MAIN MENU</h1>
         <button class="btn" onclick="start()">NEW GAME</button>
+        <button class="btn" onclick="alert('No Saves')">LOAD GAME</button>
+        <button class="btn" onclick="alert('Sound: ON')">SETTINGS</button>
     </div>
 
-    <div id="crosshair">+</div>
-    <div id="interact-prompt">PRESS [H] TO INTERACT</div>
-    <div id="hud"><b>INV:</b> <span id="inv">KHali</span></div>
+    <div id="game">
+        <div id="hud">INV: <span id="inv">KHali</span> | Door: LOCKED</div>
+        <div id="door">BASEMENT DOOR</div>
+        <div id="pot" class="obj" style="width: 30px; height: 30px; top: 100px; left: 100px;">POT</div>
+        <div id="player"></div>
+    </div>
+</div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-
-    <script>
-        let scene, camera, renderer, player, pot, door;
-        let move = { f: 0, r: 0 };
-        let hasCode = false;
-
-        function start() {
-            document.getElementById('menu').style.display = 'none';
-            document.body.requestPointerLock();
-            init();
+<script>
+    // Loading Bar Logic
+    let p = 0;
+    let inv = setInterval(() => {
+        p += 5;
+        document.getElementById('bar').style.width = p + "%";
+        if(p >= 100) {
+            clearInterval(inv);
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('menu').style.display = 'block';
         }
+    }, 50);
 
-        function init() {
-            scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x050505);
-            camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
-            
-            player = new THREE.Group();
-            player.add(camera);
-            scene.add(player);
-            player.position.set(0, 1.6, 10);
+    let px = 380, py = 400;
+    let hasCode = false;
 
-            renderer = new THREE.WebGLRenderer({ antialias: true });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            document.body.appendChild(renderer.domElement);
+    function start() {
+        document.getElementById('menu').style.display = 'none';
+        document.getElementById('game').style.display = 'block';
+    }
 
-            scene.add(new THREE.AmbientLight(0xffffff, 0.5));
-            let pLight = new THREE.PointLight(0xffffff, 1, 50);
-            pLight.position.set(0, 5, 0);
-            scene.add(pLight);
+    window.addEventListener('keydown', (e) => {
+        let speed = 15;
+        if(e.key === 'w' || e.key === 'ArrowUp') py -= speed;
+        if(e.key === 's' || e.key === 'ArrowDown') py += speed;
+        if(e.key === 'a' || e.key === 'ArrowLeft') px -= speed;
+        if(e.key === 'd' || e.key === 'ArrowRight') px += speed;
 
-            // Floor
-            let floor = new THREE.Mesh(new THREE.PlaneGeometry(100, 100), new THREE.MeshStandardMaterial({color: 0x222222}));
-            floor.rotation.x = -Math.PI/2; scene.add(floor);
-
-            // Pot (Target)
-            pot = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.3, 0.7), new THREE.MeshStandardMaterial({color: 0xffa500}));
-            pot.position.set(0, 0.35, -5); 
-            scene.add(pot);
-
-            // Door
-            door = new THREE.Mesh(new THREE.BoxGeometry(4, 6, 0.5), new THREE.MeshStandardMaterial({color: 0x4b2d1f}));
-            door.position.set(0, 1, 0); 
-            scene.add(door);
-
-            animate();
-        }
-
-        window.addEventListener('keydown', (e) => {
-            let k = e.key.toLowerCase();
-            if(k === 'w') move.f = 1; if(k === 's') move.f = -1;
-            if(k === 'a') move.r = -1; if(k === 'd') move.r = 1;
-            if(k === 'h') checkInteract();
-        });
-
-        window.addEventListener('keyup', (e) => {
-            let k = e.key.toLowerCase();
-            if(k === 'w' || k === 's') move.f = 0;
-            if(k === 'a' || k === 'd') move.r = 0;
-        });
-
-        function checkInteract() {
-            // Pot interaction
-            let distPot = player.position.distanceTo(pot.position);
-            if(distPot < 4) {
+        // Interaction Logic
+        if(e.key === 'h' || e.key === 'H') {
+            // Check Pot
+            if(Math.abs(px - 100) < 50 && Math.abs(py - 100) < 50) {
                 hasCode = true;
-                pot.position.y = 5; // Pot gayab/uth gaya
                 document.getElementById('inv').innerText = "CODE: 1045";
-                alert("Saboot mil gaya! Code: 1045");
+                document.getElementById('pot').style.background = "gray";
+                alert("Pot ke neeche code mil gaya: 1045!");
             }
-
-            // Door interaction
-            let distDoor = player.position.distanceTo(door.position);
-            if(distDoor < 4 && hasCode) {
-                door.position.x = 5; // Darwaza khul gaya
-                alert("Darwaza khul gaya! Tum aage badh sakte ho.");
-            } else if(distDoor < 4 && !hasCode) {
-                alert("Darwaza band hai. Pehle code dhoondo!");
+            // Check Door
+            if(Math.abs(px - 350) < 60 && Math.abs(py - 50) < 50) {
+                if(hasCode) {
+                    document.getElementById('door').style.background = "green";
+                    document.getElementById('door').innerText = "OPEN";
+                    alert("Darwaza khul gaya! Case Solved!");
+                } else {
+                    alert("Darwaza band hai. Pehle POT ke paas jaakar H dabao code ke liye.");
+                }
             }
         }
 
-        document.addEventListener('pointermove', (e) => {
-            if(document.pointerLockElement) player.rotation.y -= e.movementX * 0.003;
-        });
+        // Boundary
+        px = Math.max(0, Math.min(760, px));
+        py = Math.max(0, Math.min(460, py));
 
-        function animate() {
-            requestAnimationFrame(animate);
-            
-            // Movement logic
-            if(move.f !== 0 || move.r !== 0) {
-                let dir = new THREE.Vector3(move.r, 0, -move.f).normalize().applyQuaternion(player.quaternion);
-                player.position.addScaledVector(dir, 0.15);
-            }
-
-            // Prompt logic
-            let distPot = player.position.distanceTo(pot.position);
-            let distDoor = player.position.distanceTo(door.position);
-            if(distPot < 4 || distDoor < 4) {
-                document.getElementById('interact-prompt').style.display = 'block';
-            } else {
-                document.getElementById('interact-prompt').style.display = 'none';
-            }
-
-            renderer.render(scene, camera);
-        }
-    </script>
+        document.getElementById('player').style.left = px + "px";
+        document.getElementById('player').style.top = py + "px";
+    });
+</script>
 </body>
 </html>
