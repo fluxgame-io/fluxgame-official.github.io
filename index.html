@@ -2,38 +2,39 @@
 <html>
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>KABIR: THE HOME INVESTIGATION</title>
+    <title>KABIR: LIGHTS & SWITCHES</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; font-family: 'Courier New', monospace; touch-action: none; }
         #crosshair { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #fff; font-size: 24px; pointer-events: none; z-index: 100; }
         .hud { position: fixed; top: 10px; left: 10px; color: #00f2ff; background: rgba(0,0,0,0.7); padding: 12px; z-index: 100; font-size: 13px; pointer-events: none; border-left: 4px solid #00f2ff; }
-        #examine-msg { position: fixed; top: 20%; width: 100%; text-align: center; color: #00f2ff; display: none; z-index: 1000; font-weight: bold; text-shadow: 2px 2px #000; }
+        #msg { position: fixed; top: 20%; width: 100%; text-align: center; color: #00f2ff; display: none; z-index: 1000; font-weight: bold; background: rgba(0,0,0,0.5); padding: 10px; }
     </style>
 </head>
 <body>
 
     <div id="crosshair">+</div>
-    <div id="examine-msg">EXAMINING EVIDENCE<br><span style="font-size: 12px; color: white;">[H] Dabao Wapas Rakhne Ke Liye | Mouse se Ghumao</span></div>
+    <div id="msg"></div>
     
     <div id="hud" class="hud">
         <b>KABIR INVESTIGATION SYSTEM</b><br>
-        STATUS: <span id="move-status">STANDING</span><br>
-        [WASD] Chalna | [H] Examine | [TAB] Light
+        [H] Switch/Door | [F] Flashlight | [TAB] Intensity<br>
+        ROOM 1 LIGHT: <span id="r1-stat">ON</span> | ROOM 2: <span id="r2-stat">ON</span>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
     <script>
-        let scene, camera, renderer, torch, examineObject;
+        let scene, camera, renderer, torch, door;
         let yaw = new THREE.Object3D(), pitch = new THREE.Object3D();
-        let moveF = 0, moveR = 0, isSprinting = false, isExamining = false;
-        let lightModes = [15, 40, 90]; currentMode = 2;
+        let moveF = 0, moveR = 0, isSprinting = false;
+        let colliders = [], interactables = [];
+        let room1Light, room2Light, switch1, switch2;
 
         init();
 
         function init() {
             scene = new THREE.Scene();
-            scene.fog = new THREE.FogExp2(0x000000, 0.15);
+            scene.fog = new THREE.FogExp2(0x000000, 0.08);
             camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
             yaw.add(pitch); pitch.add(camera); scene.add(yaw);
 
@@ -42,106 +43,83 @@
             renderer.shadowMap.enabled = true;
             document.body.appendChild(renderer.domElement);
 
-            const loader = new THREE.TextureLoader();
+            // Ambient Light (Very Dim)
+            scene.add(new THREE.AmbientLight(0xffffff, 0.05));
 
-            // 1. THE NORMAL ROOM (Deewarein & Floor)
-            // Ground (Wooden Floor Look)
-            const floorMat = new THREE.MeshStandardMaterial({ color: 0x332211, roughness: 1 });
-            const floor = new THREE.Mesh(new THREE.PlaneGeometry(20, 30), floorMat);
+            // FLOOR
+            const floor = new THREE.Mesh(new THREE.PlaneGeometry(60, 60), new THREE.MeshStandardMaterial({ color: 0x1a1a1a }));
             floor.rotation.x = -Math.PI/2; floor.position.y = -2; floor.receiveShadow = true;
             scene.add(floor);
 
-            // Walls (Dirty White Look)
-            const wallMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, roughness: 1 });
-            const backWall = new THREE.Mesh(new THREE.PlaneGeometry(20, 6), wallMat);
-            backWall.position.set(0, 1, -15); backWall.receiveShadow = true;
-            scene.add(backWall);
+            // ROOM 1 LIGHT
+            room1Light = new THREE.PointLight(0xffffff, 0.8, 15);
+            room1Light.position.set(0, 3, -7);
+            scene.add(room1Light);
 
-            const sideWallGeo = new THREE.PlaneGeometry(30, 6);
-            const leftWall = new THREE.Mesh(sideWallGeo, wallMat);
-            leftWall.position.set(-10, 1, 0); leftWall.rotation.y = Math.PI/2; leftWall.receiveShadow = true;
-            scene.add(leftWall);
+            // ROOM 2 LIGHT
+            room2Light = new THREE.PointLight(0xffffff, 0.8, 20);
+            room2Light.position.set(0, 3, 10);
+            scene.add(room2Light);
 
-            const rightWall = new THREE.Mesh(sideWallGeo, wallMat);
-            rightWall.position.set(10, 1, 0); rightWall.rotation.y = -Math.PI/2; rightWall.receiveShadow = true;
-            scene.add(rightWall);
+            // WALLS & COLLIDERS
+            createWall(0, 1, -15, 20, 6); // Back R1
+            createWall(-10, 1, 0, 30, 6, true); // Left
+            createWall(10, 1, 0, 30, 6, true); // Right
+            createWall(-6, 1, 0, 8, 6); // Mid Left
+            createWall(6, 1, 0, 8, 6); // Mid Right
+            createWall(0, 4.5, 0, 4, 3); // Above Door
 
-            // 2. FURNITURE (Table)
-            const tableMat = new THREE.MeshStandardMaterial({ color: 0x4a2c16 });
-            const tableTop = new THREE.Mesh(new THREE.BoxGeometry(4, 0.2, 2.5), tableMat);
-            tableTop.position.set(0, -1, -8); tableTop.castShadow = true; tableTop.receiveShadow = true;
-            scene.add(tableTop);
-            
-            // Table Legs
-            for(let i=0; i<4; i++) {
-                const leg = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1, 0.1), tableMat);
-                leg.position.set((i<2 ? 1.8 : -1.8), -1.5, (i%2==0 ? 1 : -1) - 8); leg.castShadow = true;
-                scene.add(leg);
-            }
+            // DOOR
+            door = new THREE.Mesh(new THREE.BoxGeometry(4, 5, 0.2), new THREE.MeshStandardMaterial({color: 0x4d2a1e}));
+            door.position.set(0, 0.5, 0); door.userData = { type: 'door', isOpen: false };
+            scene.add(door); colliders.push(door); interactables.push(door);
 
-            // 3. THE MYSTERY FLOWER POT (H-Toggle System)
-            // Pot body
-            const potGeo = new THREE.CylinderGeometry(0.3, 0.2, 0.6, 16);
-            const potMat = new THREE.MeshStandardMaterial({ color: 0xcd853f });
-            examineObject = new THREE.Group(); // Group all parts together
-            
-            const potMesh = new THREE.Mesh(potGeo, potMat);
-            potMesh.castShadow = true;
-            examineObject.add(potMesh);
+            // SWITCHES (Small Cubes on Walls)
+            switch1 = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.3, 0.1), new THREE.MeshStandardMaterial({color: 0xffffff}));
+            switch1.position.set(-2, 0.5, -0.1); switch1.userData = { type: 'switch', room: 1 };
+            scene.add(switch1); interactables.push(switch1);
 
-            // Flower & Soil
-            const soil = new THREE.Mesh(new THREE.CircleGeometry(0.28, 16), new THREE.MeshStandardMaterial({color: 0x221100}));
-            soil.rotation.x = -Math.PI/2; soil.position.y = 0.31;
-            examineObject.add(soil);
+            switch2 = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.3, 0.1), new THREE.MeshStandardMaterial({color: 0xffffff}));
+            switch2.position.set(2, 0.5, 0.1); switch2.userData = { type: 'switch', room: 2 };
+            scene.add(switch2); interactables.push(switch2);
 
-            const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.5), new THREE.MeshStandardMaterial({color: 0x006600}));
-            stem.position.y = 0.5;
-            examineObject.add(stem);
+            // FURNITURE
+            createFurniture(0, -1, -8, 3, 0.2, 2, 0x4a2c16); // R1 Table
+            createFurniture(5, -1, 8, 3, 1.5, 2, 0x333333); // R2 Sofa
+            createFurniture(-7, 0, 12, 2, 4, 1, 0x221105); // R2 Cupboard
 
-            const flower = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 8), new THREE.MeshStandardMaterial({color: 0xee0000}));
-            flower.position.y = 0.75;
-            examineObject.add(flower);
-
-            // THE HIDDEN NOTE (Pot ke base par)
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
-            canvas.width = 128; canvas.height = 128;
-            ctx.fillStyle = '#f0e68c'; ctx.fillRect(0,0,128,128);
-            ctx.fillStyle = 'black'; ctx.font = 'bold 20px Arial';
-            ctx.fillText("CODE:", 35, 50); ctx.font = 'bold 25px Arial'; ctx.fillStyle = 'red';
-            ctx.fillText("1045", 35, 80);
-            
-            const noteTex = new THREE.CanvasTexture(canvas);
-            const noteGeo = new THREE.CircleGeometry(0.19, 16);
-            const noteMat = new THREE.MeshStandardMaterial({ map: noteTex, side: THREE.DoubleSide });
-            const hiddenNote = new THREE.Mesh(noteGeo, noteMat);
-            hiddenNote.rotation.x = Math.PI/2; // Niche chipka do
-            hiddenNote.position.y = -0.301;
-            examineObject.add(hiddenNote);
-
-            examineObject.position.set(0, -0.8, -8.3);
-            scene.add(examineObject);
-
-            // Torch
-            torch = new THREE.SpotLight(0xffffff, lightModes[currentMode]);
-            torch.angle = Math.PI/6; torch.penumbra = 0.6; torch.castShadow = true;
+            // TORCH
+            torch = new THREE.SpotLight(0xffffff, 40);
+            torch.angle = Math.PI/7; torch.castShadow = true;
             camera.add(torch); torch.target.position.set(0, 0, -1); camera.add(torch.target);
 
             setupControls();
             animate();
         }
 
+        function createWall(x, y, z, w, h, rotate=false) {
+            const wall = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshStandardMaterial({ color: 0x444444 }));
+            wall.position.set(x, y, z);
+            if(rotate) wall.rotation.y = Math.PI/2;
+            scene.add(wall);
+            const box = new THREE.Mesh(new THREE.BoxGeometry(rotate?0.5:w, h, rotate?w:0.5));
+            box.position.set(x, y, z); box.visible = false;
+            scene.add(box); colliders.push(box);
+        }
+
+        function createFurniture(x, y, z, w, h, d, col) {
+            const obj = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshStandardMaterial({ color: col }));
+            obj.position.set(x, y, z); obj.castShadow = true; scene.add(obj); colliders.push(obj);
+        }
+
         function setupControls() {
             document.addEventListener('keydown', (e) => {
                 const key = e.key.toLowerCase();
-                if(e.key === 'Tab') { e.preventDefault(); currentMode = (currentMode + 1) % lightModes.length; torch.intensity = lightModes[currentMode]; }
-                if(key === 'h') { if(isExamining) stopExamine(); else tryExamine(); }
-                if(!isExamining) {
-                    if(key === 'w') moveF = 1; if(key === 's') moveF = -1;
-                    if(key === 'a') moveR = -1; if(key === 'd') moveR = 1;
-                    if(e.code === 'Space') isSprinting = true;
-                }
+                if(key === 'w') moveF = 1; if(key === 's') moveF = -1;
+                if(key === 'a') moveR = -1; if(key === 'd') moveR = 1;
+                if(e.code === 'Space') isSprinting = true;
                 if(key === 'f') torch.visible = !torch.visible;
+                if(key === 'h') interact();
             });
             document.addEventListener('keyup', (e) => {
                 const key = e.key.toLowerCase();
@@ -149,48 +127,55 @@
                 if(e.code === 'Space') isSprinting = false;
             });
             document.addEventListener('pointermove', (e) => {
-                if(isExamining) { examineObject.rotation.y += e.movementX * 0.01; examineObject.rotation.x += e.movementY * 0.01; }
-                else if(document.pointerLockElement) {
-                    yaw.rotation.y -= e.movementX * 0.003; pitch.rotation.x -= e.movementY * 0.003;
+                if(document.pointerLockElement) {
+                    yaw.rotation.y -= e.movementX * 0.002;
+                    pitch.rotation.x -= e.movementY * 0.002;
                     pitch.rotation.x = Math.max(-1.5, Math.min(1.5, pitch.rotation.x));
                 }
             });
-            document.addEventListener('mousedown', () => { if(!isExamining) document.body.requestPointerLock(); });
+            document.addEventListener('mousedown', () => document.body.requestPointerLock());
         }
 
-        function tryExamine() {
-            if(yaw.position.distanceTo(examineObject.position) < 4) {
-                isExamining = true; moveF = 0; moveR = 0; isSprinting = false;
-                document.getElementById('examine-msg').style.display = 'block';
-                examineObject.userData.oldPos = examineObject.position.clone();
-                examineObject.userData.oldRot = examineObject.rotation.clone();
-                camera.add(examineObject);
-                examineObject.position.set(0, 0, -1.2); examineObject.rotation.set(0, 0, 0);
-                torch.intensity = 60; 
-            }
+        function interact() {
+            interactables.forEach(obj => {
+                if(yaw.position.distanceTo(obj.position) < 4) {
+                    if(obj.userData.type === 'door') {
+                        obj.userData.isOpen = !obj.userData.isOpen;
+                        obj.position.x = obj.userData.isOpen ? 4 : 0;
+                        if(obj.userData.isOpen) colliders = colliders.filter(c => c !== door);
+                        else colliders.push(door);
+                        showMessage(obj.userData.isOpen ? "DOOR OPENED" : "DOOR CLOSED");
+                    }
+                    if(obj.userData.type === 'switch') {
+                        if(obj.userData.room === 1) {
+                            room1Light.visible = !room1Light.visible;
+                            document.getElementById('r1-stat').innerText = room1Light.visible ? "ON" : "OFF";
+                        } else {
+                            room2Light.visible = !room2Light.visible;
+                            document.getElementById('r2-stat').innerText = room2Light.visible ? "ON" : "OFF";
+                        }
+                        showMessage("SWITCH TOGGLED");
+                    }
+                }
+            });
         }
-        function stopExamine() {
-            isExamining = false; document.getElementById('examine-msg').style.display = 'none';
-            scene.attach(examineObject);
-            examineObject.position.copy(examineObject.userData.oldPos);
-            examineObject.rotation.copy(examineObject.userData.oldRot);
-            torch.intensity = lightModes[currentMode];
+
+        function showMessage(t) {
+            const m = document.getElementById('msg');
+            m.innerText = t; m.style.display = 'block';
+            setTimeout(() => m.style.display = 'none', 1500);
         }
 
         function animate() {
             requestAnimationFrame(animate);
-            if(!isExamining) {
-                let speed = isSprinting ? 0.20 : 0.08; 
-                document.getElementById('move-status').innerText = (moveF || moveR) ? (isSprinting ? "RUNNING" : "WALKING") : "STANDING";
-                const dir = new THREE.Vector3(moveR, 0, -moveF).normalize();
-                dir.applyQuaternion(yaw.quaternion);
-                yaw.position.addScaledVector(dir, speed);
-                // Simple collision handling to stay inside room
-                yaw.position.x = Math.max(-9, Math.min(9, yaw.position.x));
-                yaw.position.z = Math.max(-14, Math.min(14, yaw.position.z));
-                // Bobbing
-                if(moveF || moveR) { pitch.position.y = Math.sin(Date.now() * (isSprinting ? 0.015 : 0.008)) * (isSprinting ? 0.08 : 0.03); }
-                else { pitch.position.y = THREE.MathUtils.lerp(pitch.position.y, 0, 0.1); }
+            let speed = isSprinting ? 0.20 : 0.08;
+            if(moveF || moveR) {
+                const dir = new THREE.Vector3(moveR, 0, -moveF).normalize().applyQuaternion(yaw.quaternion);
+                const nextPos = yaw.position.clone().addScaledVector(dir, speed);
+                let canMove = true;
+                const pBox = new THREE.Box3().setFromCenterAndSize(nextPos, new THREE.Vector3(1, 4, 1));
+                for(let obj of colliders) { if(pBox.intersectsBox(new THREE.Box3().setFromObject(obj))) { canMove = false; break; } }
+                if(canMove) yaw.position.copy(nextPos);
             }
             renderer.render(scene, camera);
         }
