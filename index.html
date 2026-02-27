@@ -1,89 +1,42 @@
-p<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DETECTIVE KABIR: THE SILENT WITNESS</title>
+    <title>KABIR: INTERACTION FIXED</title>
     <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #000; font-family: 'Courier New', monospace; }
-        
-        /* Loading & Thumbnail Screen */
-        #loading-screen { position: fixed; width: 100%; height: 100%; background: #000 url('https://images.unsplash.com/photo-1505632958218-4f23394784a6?q=80&w=1000&auto=format&fit=crop') no-repeat center; background-size: cover; z-index: 2000; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; padding-bottom: 50px; }
-        .loader { width: 200px; height: 10px; background: #222; border: 1px solid #00f2ff; position: relative; }
-        .progress { width: 0%; height: 100%; background: #00f2ff; transition: 0.5s; }
-
-        /* Intro Menu */
-        #intro-menu { position: fixed; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 1500; display: none; flex-direction: column; justify-content: center; align-items: center; color: #00f2ff; }
-        .menu-btn { background: none; border: 2px solid #00f2ff; color: #00f2ff; padding: 15px 40px; margin: 10px; font-size: 20px; cursor: pointer; width: 250px; font-weight: bold; }
-        .menu-btn:hover { background: #00f2ff; color: #000; box-shadow: 0 0 20px #00f2ff; }
-
-        /* Game UI */
-        #hud { position: fixed; bottom: 20px; left: 20px; color: #00f2ff; background: rgba(0,0,0,0.8); padding: 15px; border: 1px solid #00f2ff; z-index: 100; display: none; }
-        #crosshair { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #fff; font-size: 24px; z-index: 100; display: none; pointer-events: none; }
+        body { margin: 0; overflow: hidden; background: #000; font-family: 'Courier New', monospace; }
+        #crosshair { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #fff; font-size: 24px; z-index: 100; pointer-events: none; }
+        #interact-prompt { position: fixed; top: 60%; width: 100%; text-align: center; color: yellow; font-size: 20px; font-weight: bold; display: none; z-index: 100; text-shadow: 2px 2px #000; }
+        #hud { position: fixed; bottom: 20px; left: 20px; color: #00f2ff; background: rgba(0,0,0,0.8); padding: 15px; border: 1px solid #00f2ff; z-index: 100; }
+        #menu { position: fixed; width: 100%; height: 100%; background: #000; z-index: 1000; display: flex; flex-direction: column; justify-content: center; align-items: center; color: #00f2ff; }
+        .btn { border: 2px solid #00f2ff; background: none; color: #00f2ff; padding: 15px 30px; margin: 10px; cursor: pointer; font-size: 20px; }
     </style>
 </head>
 <body>
 
-    <div id="loading-screen">
-        <h2 style="color: white; text-shadow: 2px 2px #000;">KABIR: THE SILENT WITNESS</h2>
-        <div class="loader"><div class="progress" id="p-bar"></div></div>
-        <p style="color: white;">Loading Evidence...</p>
-    </div>
-
-    <div id="intro-menu">
-        <h1 style="font-size: 50px; margin-bottom: 30px;">MAIN MENU</h1>
-        <button class="menu-btn" onclick="startGame()">NEW GAME</button>
-        <button class="menu-btn" onclick="alert('No Saved Games Found')">LOAD GAME</button>
-        <button class="menu-btn" onclick="alert('Settings: High Graphics, Sound ON')">SETTINGS</button>
+    <div id="menu">
+        <h1>DETECTIVE KABIR</h1>
+        <button class="btn" onclick="start()">NEW GAME</button>
     </div>
 
     <div id="crosshair">+</div>
-    <div id="hud">
-        <b>DETECTIVE KABIR</b><br>
-        [WASD] Walk | [Shift] Run | [H] Interact<br>
-        Inventory: <span id="inv">Empty</span>
-    </div>
-
-    <script>
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        function playSound(freq, type, duration) {
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            osc.type = type; osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-            gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
-            osc.connect(gain); gain.connect(audioCtx.destination);
-            osc.start(); osc.stop(audioCtx.currentTime + duration);
-        }
-    </script>
+    <div id="interact-prompt">PRESS [H] TO INTERACT</div>
+    <div id="hud"><b>INV:</b> <span id="inv">KHali</span></div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
     <script>
-        let scene, camera, renderer, player, flowerPot, door;
-        let move = { f: 0, r: 0, sprint: 1 };
-        let colliders = [], hasCode = false, isExamining = false;
+        let scene, camera, renderer, player, pot, door;
+        let move = { f: 0, r: 0 };
+        let hasCode = false;
 
-        // Loading Logic
-        let progress = 0;
-        let interval = setInterval(() => {
-            progress += Math.random() * 20;
-            document.getElementById('p-bar').style.width = progress + '%';
-            if(progress >= 100) {
-                clearInterval(interval);
-                document.getElementById('loading-screen').style.display = 'none';
-                document.getElementById('intro-menu').style.display = 'flex';
-            }
-        }, 300);
-
-        function startGame() {
-            document.getElementById('intro-menu').style.display = 'none';
-            document.getElementById('hud').style.display = 'block';
-            document.getElementById('crosshair').style.display = 'block';
+        function start() {
+            document.getElementById('menu').style.display = 'none';
             document.body.requestPointerLock();
-            initGame();
+            init();
         }
 
-        function initGame() {
+        function init() {
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x050505);
             camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
@@ -97,85 +50,85 @@ p<!DOCTYPE html>
             renderer.setSize(window.innerWidth, window.innerHeight);
             document.body.appendChild(renderer.domElement);
 
-            // Lighting
-            const light = new THREE.PointLight(0xffffff, 1.5, 30);
-            light.position.set(0, 5, 0);
-            scene.add(light);
-            scene.add(new THREE.AmbientLight(0x404040));
+            scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+            let pLight = new THREE.PointLight(0xffffff, 1, 50);
+            pLight.position.set(0, 5, 0);
+            scene.add(pLight);
 
-            // Room
-            const floor = new THREE.Mesh(new THREE.PlaneGeometry(50, 50), new THREE.MeshStandardMaterial({color: 0x222222}));
+            // Floor
+            let floor = new THREE.Mesh(new THREE.PlaneGeometry(100, 100), new THREE.MeshStandardMaterial({color: 0x222222}));
             floor.rotation.x = -Math.PI/2; scene.add(floor);
 
-            // Walls & Door
-            createWall(0, 2, -10, 15, 6); // Back
-            door = new THREE.Mesh(new THREE.BoxGeometry(4, 6, 0.4), new THREE.MeshStandardMaterial({color: 0x4a2c16}));
-            door.position.set(0, 1, 0); scene.add(door);
-            colliders.push(door);
+            // Pot (Target)
+            pot = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.3, 0.7), new THREE.MeshStandardMaterial({color: 0xffa500}));
+            pot.position.set(0, 0.35, -5); 
+            scene.add(pot);
 
-            // Evidence: Pot
-            flowerPot = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.2, 0.5), new THREE.MeshStandardMaterial({color: 0xcd853f}));
-            flowerPot.position.set(-3, 0.2, -5); scene.add(flowerPot);
+            // Door
+            door = new THREE.Mesh(new THREE.BoxGeometry(4, 6, 0.5), new THREE.MeshStandardMaterial({color: 0x4b2d1f}));
+            door.position.set(0, 1, 0); 
+            scene.add(door);
 
             animate();
         }
 
-        function createWall(x, y, z, w, h) {
-            const wall = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.5), new THREE.MeshStandardMaterial({color: 0x333333}));
-            wall.position.set(x, y, z); scene.add(wall);
-            colliders.push(wall);
-        }
-
-        // Input Handling
         window.addEventListener('keydown', (e) => {
-            const k = e.key.toLowerCase();
-            if(k === 'w') { move.f = 1; playSound(100, 'sine', 0.1); } // Step sound
-            if(k === 's') move.f = -1;
-            if(k === 'a') move.r = -1;
-            if(k === 'd') move.r = 1;
-            if(e.shiftKey) move.sprint = 2;
-            if(k === 'h') interact();
+            let k = e.key.toLowerCase();
+            if(k === 'w') move.f = 1; if(k === 's') move.f = -1;
+            if(k === 'a') move.r = -1; if(k === 'd') move.r = 1;
+            if(k === 'h') checkInteract();
         });
+
         window.addEventListener('keyup', (e) => {
-            const k = e.key.toLowerCase();
+            let k = e.key.toLowerCase();
             if(k === 'w' || k === 's') move.f = 0;
             if(k === 'a' || k === 'd') move.r = 0;
-            if(!e.shiftKey) move.sprint = 1;
         });
 
-        function interact() {
-            if(player.position.distanceTo(flowerPot.position) < 3) {
+        function checkInteract() {
+            // Pot interaction
+            let distPot = player.position.distanceTo(pot.position);
+            if(distPot < 4) {
                 hasCode = true;
-                playSound(600, 'square', 0.2); // Interaction sound
+                pot.position.y = 5; // Pot gayab/uth gaya
                 document.getElementById('inv').innerText = "CODE: 1045";
-                flowerPot.position.y = 3; // Move pot
+                alert("Saboot mil gaya! Code: 1045");
             }
-            if(player.position.distanceTo(door.position) < 3 && hasCode) {
-                door.position.x = 5;
-                playSound(200, 'sawtooth', 0.5); // Door open sound
-                colliders = colliders.filter(c => c !== door);
-            }
-        }
 
-        function animate() {
-            requestAnimationFrame(animate);
-            if(move.f !== 0 || move.r !== 0) {
-                let speed = 0.1 * move.sprint;
-                let dir = new THREE.Vector3(move.r, 0, -move.f).normalize().applyQuaternion(player.quaternion);
-                let nextPos = player.position.clone().addScaledVector(dir, speed);
-                
-                let canMove = true;
-                for(let c of colliders) {
-                    if (new THREE.Box3().setFromObject(c).containsPoint(nextPos)) canMove = false;
-                }
-                if(canMove) player.position.copy(nextPos);
+            // Door interaction
+            let distDoor = player.position.distanceTo(door.position);
+            if(distDoor < 4 && hasCode) {
+                door.position.x = 5; // Darwaza khul gaya
+                alert("Darwaza khul gaya! Tum aage badh sakte ho.");
+            } else if(distDoor < 4 && !hasCode) {
+                alert("Darwaza band hai. Pehle code dhoondo!");
             }
-            renderer.render(scene, camera);
         }
 
         document.addEventListener('pointermove', (e) => {
-            if(document.pointerLockElement) player.rotation.y -= e.movementX * 0.002;
+            if(document.pointerLockElement) player.rotation.y -= e.movementX * 0.003;
         });
+
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            // Movement logic
+            if(move.f !== 0 || move.r !== 0) {
+                let dir = new THREE.Vector3(move.r, 0, -move.f).normalize().applyQuaternion(player.quaternion);
+                player.position.addScaledVector(dir, 0.15);
+            }
+
+            // Prompt logic
+            let distPot = player.position.distanceTo(pot.position);
+            let distDoor = player.position.distanceTo(door.position);
+            if(distPot < 4 || distDoor < 4) {
+                document.getElementById('interact-prompt').style.display = 'block';
+            } else {
+                document.getElementById('interact-prompt').style.display = 'none';
+            }
+
+            renderer.render(scene, camera);
+        }
     </script>
 </body>
 </html>
