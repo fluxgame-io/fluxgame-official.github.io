@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>KABIR: MOVEMENT FIX</title>
+    <title>KABIR: ONE-KEY EXAMINE</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; font-family: 'Courier New', monospace; touch-action: none; }
         #crosshair { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #fff; font-size: 24px; pointer-events: none; z-index: 100; }
@@ -16,12 +16,12 @@
 <body>
 
     <div id="crosshair">+</div>
-    <div id="examine-msg">EXAMINING EVIDENCE<br><span style="font-size: 12px; color: white;">[ESC] ya Click karke Wapas Jayein</span></div>
+    <div id="examine-msg">EXAMINING EVIDENCE<br><span style="font-size: 12px; color: white;">[H] Dabao Wapas Rakhne Ke Liye</span></div>
     
     <div id="hud" class="hud">
         <b>KABIR INVESTIGATION SYSTEM</b><br>
-        LIGHT: <span id="light-val">HIGH</span><br>
-        [WASD] Chalna | [TAB] Intensity | [H] Examine
+        STATUS: <span id="move-status">STANDING</span><br>
+        [H] Uthana / Rakhna | [W+Space] Bhagna
     </div>
 
     <div class="mobile-ui">
@@ -34,8 +34,7 @@
     <script>
         let scene, camera, renderer, torch, examineObject;
         let yaw = new THREE.Object3D(), pitch = new THREE.Object3D();
-        let moveF = 0, moveR = 0;
-        let isExamining = false;
+        let moveF = 0, moveR = 0, isSprinting = false, isExamining = false;
         let lightModes = [10, 30, 80];
         let currentMode = 2;
 
@@ -55,12 +54,11 @@
             renderer.shadowMap.enabled = true;
             document.body.appendChild(renderer.domElement);
 
-            // Ground
             const floor = new THREE.Mesh(new THREE.PlaneGeometry(100, 100), new THREE.MeshStandardMaterial({ color: 0x151515 }));
             floor.rotation.x = -Math.PI/2; floor.position.y = -2; floor.receiveShadow = true;
             scene.add(floor);
 
-            // Saboot (Evidence)
+            // Evidence Letter
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d');
             canvas.width = 512; canvas.height = 512;
@@ -68,13 +66,11 @@
             ctx.fillStyle = 'black'; ctx.font = 'bold 35px Arial';
             ctx.fillText("SECRET FILE: #99", 50, 100);
             ctx.fillText("CODE: 7734", 50, 350);
-            
             const tex = new THREE.CanvasTexture(canvas);
             examineObject = new THREE.Mesh(new THREE.BoxGeometry(0.8, 1.1, 0.05), new THREE.MeshStandardMaterial({ map: tex }));
             examineObject.position.set(0, -1.2, -5);
             scene.add(examineObject);
 
-            // Torch
             torch = new THREE.SpotLight(0xffffff, lightModes[currentMode]);
             torch.angle = Math.PI/7; torch.penumbra = 0.5; torch.castShadow = true;
             camera.add(torch);
@@ -87,55 +83,61 @@
 
         function setupControls() {
             document.addEventListener('keydown', (e) => {
-                if(e.key === 'Tab') { e.preventDefault(); currentMode = (currentMode + 1) % lightModes.length; updateLightUI(); }
-                if(!isExamining) {
-                    if(e.key.toLowerCase() === 'w') moveF = 1;
-                    if(e.key.toLowerCase() === 's') moveF = -1;
-                    if(e.key.toLowerCase() === 'a') moveR = -1;
-                    if(e.key.toLowerCase() === 'd') moveR = 1;
-                    if(e.key.toLowerCase() === 'h') tryExamine();
+                const key = e.key.toLowerCase();
+                if(e.key === 'Tab') { e.preventDefault(); currentMode = (currentMode + 1) % lightModes.length; torch.intensity = lightModes[currentMode]; }
+                
+                if(key === 'h') {
+                    if(isExamining) stopExamine();
+                    else tryExamine();
                 }
+
+                if(!isExamining) {
+                    if(key === 'w') moveF = 1;
+                    if(key === 's') moveF = -1;
+                    if(key === 'a') moveR = -1;
+                    if(key === 'd') moveR = 1;
+                    if(e.code === 'Space') isSprinting = true;
+                }
+                
                 if(e.key === 'Escape' && isExamining) stopExamine();
-                if(e.key.toLowerCase() === 'f') torch.visible = !torch.visible;
+                if(key === 'f') torch.visible = !torch.visible;
             });
 
             document.addEventListener('keyup', (e) => {
-                if(['w','s','W','S'].includes(e.key)) moveF = 0;
-                if(['a','d','A','D'].includes(e.key)) moveR = 0;
+                const key = e.key.toLowerCase();
+                if(['w','s'].includes(key)) moveF = 0;
+                if(['a','d'].includes(key)) moveR = 0;
+                if(e.code === 'Space') isSprinting = false;
             });
 
             document.addEventListener('pointermove', (e) => {
                 if(isExamining) {
                     examineObject.rotation.y += e.movementX * 0.01;
                     examineObject.rotation.x += e.movementY * 0.01;
-                } else if(document.pointerLockElement || 'ontouchstart' in window) {
+                } else if(document.pointerLockElement) {
                     yaw.rotation.y -= e.movementX * 0.003;
                     pitch.rotation.x -= e.movementY * 0.003;
                     pitch.rotation.x = Math.max(-1.5, Math.min(1.5, pitch.rotation.x));
                 }
             });
 
-            document.addEventListener('mousedown', () => { 
-                if(!isExamining) document.body.requestPointerLock(); 
-                else stopExamine(); // Examine mode mein click karne par bhi exit
-            });
+            document.addEventListener('mousedown', () => { if(!isExamining) document.body.requestPointerLock(); });
 
             document.getElementById('btn-h').onclick = () => { if(isExamining) stopExamine(); else tryExamine(); };
             document.getElementById('btn-f').onclick = () => { torch.visible = !torch.visible; };
         }
 
         function tryExamine() {
-            const dist = yaw.position.distanceTo(examineObject.position);
-            if(dist < 4) {
+            if(yaw.position.distanceTo(examineObject.position) < 4) {
                 isExamining = true;
-                moveF = 0; moveR = 0; // Movement freeze karo
+                moveF = 0; moveR = 0; isSprinting = false;
                 document.getElementById('examine-msg').style.display = 'block';
                 examineObject.userData.oldPos = examineObject.position.clone();
                 examineObject.userData.oldRot = examineObject.rotation.clone();
                 camera.add(examineObject);
                 examineObject.position.set(0, 0, -1.2);
                 examineObject.rotation.set(0, 0, 0);
-                torch.intensity = 50;
+                torch.intensity = 50; 
             }
         }
 
@@ -145,24 +147,24 @@
             scene.attach(examineObject);
             examineObject.position.copy(examineObject.userData.oldPos);
             examineObject.rotation.copy(examineObject.userData.oldRot);
-            updateLightUI();
-            // Movement keys reset taaki stuck na ho
-            moveF = 0; moveR = 0;
-        }
-
-        function updateLightUI() {
             torch.intensity = lightModes[currentMode];
-            const labels = ["LOW", "MED", "HIGH"];
-            document.getElementById('light-val').innerText = labels[currentMode];
         }
 
         function animate() {
             requestAnimationFrame(animate);
             if(!isExamining) {
+                let speed = isSprinting ? 0.22 : 0.08; 
+                document.getElementById('move-status').innerText = (moveF || moveR) ? (isSprinting ? "RUNNING" : "WALKING") : "STANDING";
                 const dir = new THREE.Vector3(moveR, 0, -moveF).normalize();
                 dir.applyQuaternion(yaw.quaternion);
-                yaw.position.addScaledVector(dir, 0.1);
-                pitch.position.y = Math.sin(Date.now() * 0.01) * 0.04;
+                yaw.position.addScaledVector(dir, speed);
+                if(moveF || moveR) {
+                    let bobFreq = isSprinting ? 0.015 : 0.008;
+                    let bobAmp = isSprinting ? 0.08 : 0.03;
+                    pitch.position.y = Math.sin(Date.now() * bobFreq) * bobAmp;
+                } else {
+                    pitch.position.y = THREE.MathUtils.lerp(pitch.position.y, 0, 0.1);
+                }
             }
             renderer.render(scene, camera);
         }
