@@ -1,70 +1,85 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>3D BODYCAM DEMO - KABIR</title>
+    <title>KABIR 3D REALISM V2</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #000; }
-        #instructions {
-            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            color: white; font-family: sans-serif; text-align: center;
-            background: rgba(0,0,0,0.8); padding: 20px; border: 1px solid #00f2ff;
-        }
+        body { margin: 0; overflow: hidden; background: #000; cursor: crosshair; }
+        #ui { position: fixed; bottom: 20px; left: 20px; color: #00f2ff; font-family: 'Courier New'; text-shadow: 2px 2px #000; }
     </style>
 </head>
 <body>
-    <div id="instructions">
-        <h1>KABIR 3D DEMO</h1>
-        <p>Mouse ghumao dekhne ke liye<br>Click karo start karne ke liye</p>
-    </div>
+    <div id="ui">DETECTIVE KABIR: SEARCHING FOR EVIDENCE...</div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
     <script>
-        let scene, camera, renderer, flashlight;
+        let scene, camera, renderer, light, pivot;
+
+        // Start
+        init();
 
         function init() {
-            // 1. Scene aur Camera (Bodycam Perspective)
             scene = new THREE.Scene();
-            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-
+            camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 1000);
+            
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.shadowMap.enabled = true; // Shadows on!
             document.body.appendChild(renderer.domElement);
 
-            // 2. Kamra Banana (Box Geometry)
-            const roomSize = 20;
-            const geometry = new THREE.BoxGeometry(roomSize, 10, roomSize);
-            // Texture ki jagah dark walls
-            const material = new THREE.MeshStandardMaterial({ color: 0x111111, side: THREE.BackSide });
-            const room = new THREE.Mesh(geometry, material);
+            // 1. ASLI DEEWAREIN (Brick Texture Look)
+            const loader = new THREE.TextureLoader();
+            // Yahan hum ek gandi deewar ka texture simulate kar rahe hain
+            const wallMat = new THREE.MeshStandardMaterial({ 
+                color: 0x444444, 
+                roughness: 0.9, 
+                metalness: 0.1,
+                side: THREE.BackSide 
+            });
+            
+            const roomGeo = new THREE.BoxGeometry(20, 10, 30);
+            const room = new THREE.Mesh(roomGeo, wallMat);
+            room.receiveShadow = true;
             scene.add(room);
 
-            // 3. Realistic Flashlight (Spotlight)
-            flashlight = new THREE.SpotLight(0xffffff, 2);
-            flashlight.angle = Math.PI / 6; // Light ka failao
-            flashlight.penumbra = 0.3; // Soft edges
-            flashlight.decay = 2;
-            flashlight.distance = 50;
+            // 2. OBSTACLES (Investigation ke liye cheezein)
+            const boxGeo = new THREE.BoxGeometry(2, 4, 2);
+            const boxMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
+            const box = new THREE.Mesh(boxGeo, boxMat);
+            box.position.set(0, -3, -10);
+            box.castShadow = true;
+            scene.add(box);
+
+            // 3. THE REAL FLASHLIGHT
+            light = new THREE.SpotLight(0xffffff, 5); // Power badha di
+            light.position.set(0, 0, 0);
+            light.angle = Math.PI / 10; // Patli aur tez beam
+            light.penumbra = 0.4; // Realistic soft edges
+            light.decay = 2;
+            light.distance = 40;
+            light.castShadow = true;
             
-            scene.add(flashlight);
-            scene.add(flashlight.target);
+            // Shadows thodi aur clear karne ke liye
+            light.shadow.mapSize.width = 1024;
+            light.shadow.mapSize.height = 1024;
 
-            camera.position.set(0, 0, 5);
+            scene.add(light);
+            scene.add(light.target);
 
-            // Control Logic
-            document.addEventListener('mousemove', (e) => {
-                const x = (e.clientX / window.innerWidth) * 2 - 1;
-                const y = -(e.clientY / window.innerHeight) * 2 + 1;
+            camera.position.z = 5;
+
+            // Move Light with Mouse
+            document.addEventListener('mousemove', (event) => {
+                let x = (event.clientX / window.innerWidth) * 2 - 1;
+                let y = -(event.clientY / window.innerHeight) * 2 + 1;
                 
-                // Camera movement (Bodycam shake effect)
-                camera.rotation.y = -x * 0.5;
-                camera.rotation.x = y * 0.5;
+                // Camera ko halka rotate karo (Bodycam feel)
+                camera.rotation.y = -x * 0.2;
+                camera.rotation.x = y * 0.2;
 
-                // Flashlight follow
-                flashlight.position.copy(camera.position);
-                const vector = new THREE.Vector3(x, y, -1).unproject(camera);
-                flashlight.target.position.copy(vector);
+                // Light target ko update karo
+                let targetPos = new THREE.Vector3(x * 10, y * 10, -20);
+                light.target.position.copy(targetPos);
             });
 
             animate();
@@ -72,15 +87,9 @@
 
         function animate() {
             requestAnimationFrame(animate);
-            // Halka bodycam bobbing (Sans lene ki feeling)
-            camera.position.y = Math.sin(Date.now() * 0.002) * 0.05;
+            // Ambient light ekdam kam taaki andhera rahe
             renderer.render(scene, camera);
         }
-
-        window.addEventListener('click', () => {
-            document.getElementById('instructions').style.display = 'none';
-            init();
-        });
     </script>
 </body>
 </html>
