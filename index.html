@@ -3,74 +3,116 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DETECTIVE KABIR: FINAL STABLE</title>
+    <title>DETECTIVE KABIR: FINAL FIX</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #000; font-family: 'Courier New', monospace; }
-        #crosshair { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #fff; font-size: 20px; pointer-events: none; z-index: 100; }
-        .hud { position: fixed; bottom: 20px; left: 20px; color: #00f2ff; background: rgba(0,0,0,0.8); padding: 15px; border: 1px solid #00f2ff; z-index: 100; pointer-events: none; }
-        #msg { position: fixed; top: 40%; width: 100%; text-align: center; color: yellow; font-size: 20px; display: none; z-index: 1000; }
+        body { margin: 0; overflow: hidden; background: #000; font-family: sans-serif; }
+        #overlay { position: fixed; width: 100%; height: 100%; background: rgba(0,0,0,0.9); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; color: white; }
+        #start-btn { padding: 15px 40px; font-size: 20px; cursor: pointer; background: #00f2ff; border: none; font-weight: bold; border-radius: 5px; }
+        #crosshair { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #fff; font-size: 20px; pointer-events: none; z-index: 100; display: none; }
+        .hud { position: fixed; bottom: 20px; left: 20px; color: #00f2ff; background: rgba(0,0,0,0.8); padding: 15px; border: 1px solid #00f2ff; z-index: 100; pointer-events: none; display: none; }
     </style>
 </head>
 <body>
 
+    <div id="overlay">
+        <h1>DETECTIVE KABIR</h1>
+        <p>Ghar ka raaz dhoondo...</p>
+        <button id="start-btn">KHEL SHURU KARO</button>
+    </div>
+
     <div id="crosshair">+</div>
-    <div id="msg">DOOR LOCKED</div>
-    
-    <div class="hud">
-        <b>KABIR INVESTIGATION</b><br>
-        1. Screen par Click karo<br>
-        2. WASD se chalo (Shift = Run)<br>
-        3. H se Pot uthao / Door kholo
+    <div id="hud" class="hud">
+        [WASD] Chalna | [H] Interact<br>
+        Screen par Click karke movement active karein
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
     <script>
-        let scene, camera, renderer, torch, flowerPot, door;
-        let yaw = new THREE.Object3D(), pitch = new THREE.Object3D();
-        let moveState = { f: 0, r: 0, sprint: 1 };
-        let colliders = [], interactables = [], roomLights = [];
-        let hasCode = false, isExamining = false;
-
-        init();
+        let scene, camera, renderer, yaw = new THREE.Object3D();
+        let moveState = { f: 0, r: 0 };
+        let colliders = [];
 
         function init() {
             scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x0a0a0a);
+            scene.background = new THREE.Color(0x111111);
             camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
-            
-            yaw.add(pitch); pitch.add(camera); scene.add(yaw);
-            yaw.position.y = 0; // Ground height par set
+            yaw.add(camera);
+            scene.add(yaw);
+            yaw.position.set(0, 0, 5); // Thoda piche start karega
 
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.shadowMap.enabled = true;
             document.body.appendChild(renderer.domElement);
 
-            // LIGHTS (Bahut Bright)
-            const light1 = new THREE.PointLight(0xffffff, 2, 30);
-            light1.position.set(0, 4, -7); scene.add(light1);
-            roomLights.push(light1);
+            // Bright Lights
+            const sun = new THREE.DirectionalLight(0xffffff, 1);
+            sun.position.set(5, 10, 5);
+            scene.add(sun);
+            scene.add(new THREE.AmbientLight(0xffffff, 0.5));
 
-            const light2 = new THREE.PointLight(0xffffff, 2, 30);
-            light2.position.set(0, 4, 10); scene.add(light2);
-            roomLights.push(light2);
-
-            // FLOOR
-            const floor = new THREE.Mesh(new THREE.PlaneGeometry(100, 100), new THREE.MeshStandardMaterial({ color: 0x222222 }));
-            floor.rotation.x = -Math.PI/2; floor.position.y = -2; floor.receiveShadow = true;
+            // Floor
+            const floor = new THREE.Mesh(new THREE.PlaneGeometry(50, 50), new THREE.MeshStandardMaterial({color: 0x333333}));
+            floor.rotation.x = -Math.PI/2; floor.position.y = -1;
             scene.add(floor);
 
-            // WALLS (Box ki jagah Plane use kiye hain takki collision smooth ho)
-            createWall(0, 1, -15, 20, 7); // Back
-            createWall(-10, 1, 0, 30, 7, true); // Left
-            createWall(10, 1, 0, 30, 7, true); // Right
-            
-            // DOOR
-            door = new THREE.Mesh(new THREE.BoxGeometry(4, 6, 0.3), new THREE.MeshStandardMaterial({color: 0x4a2c16}));
-            door.position.set(0, 1, 0); scene.add(door);
-            colliders.push(door); interactables.push(door);
+            // Simple Walls for Testing Movement
+            createWall(0, 1, -10, 10, 5); // Samne wali deewar
 
-            // TABLE & POT
-            const table = new THREE.Mesh(new THREE.BoxGeometry(4, 1, 2.5), new THREE.MeshStandardMaterial({color: 0x3d2b1f}));
-            table.position.set(0, -1.5, -8); scene.add(
+            animate();
+        }
+
+        function createWall(x, y, z, w, h) {
+            const wall = new THREE.Mesh(new THREE.BoxGeometry(w, h, 1), new THREE.MeshStandardMaterial({color: 0x888888}));
+            wall.position.set(x, y, z);
+            scene.add(wall);
+            colliders.push(wall);
+        }
+
+        document.getElementById('start-btn').addEventListener('click', () => {
+            document.getElementById('overlay').style.display = 'none';
+            document.getElementById('crosshair').style.display = 'block';
+            document.getElementById('hud').style.display = 'block';
+            document.body.requestPointerLock();
+            init();
+        });
+
+        window.addEventListener('keydown', (e) => {
+            const k = e.key.toLowerCase();
+            if(k === 'w') moveState.f = 1;
+            if(k === 's') moveState.f = -1;
+            if(k === 'a') moveState.r = -1;
+            if(k === 'd') moveState.r = 1;
+        });
+
+        window.addEventListener('keyup', (e) => {
+            const k = e.key.toLowerCase();
+            if(k === 'w' || k === 's') moveState.f = 0;
+            if(k === 'a' || k === 'd') moveState.r = 0;
+        });
+
+        document.addEventListener('pointermove', (e) => {
+            if (document.pointerLockElement) {
+                yaw.rotation.y -= e.movementX * 0.002;
+            }
+        });
+
+        function animate() {
+            requestAnimationFrame(animate);
+            if(moveState.f !== 0 || moveState.r !== 0) {
+                let speed = 0.15;
+                let dir = new THREE.Vector3(moveState.r, 0, -moveState.f).normalize().applyQuaternion(yaw.quaternion);
+                
+                // Simple Collision
+                let nextPos = yaw.position.clone().addScaledVector(dir, speed);
+                let canMove = true;
+                for(let wall of colliders) {
+                    if(nextPos.distanceTo(wall.position) < 2) canMove = false;
+                }
+                if(canMove) yaw.position.copy(nextPos);
+            }
+            renderer.render(scene, camera);
+        }
+    </script>
+</body>
+</html>
