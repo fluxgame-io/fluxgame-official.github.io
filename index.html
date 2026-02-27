@@ -1,118 +1,174 @@
 <!DOCTYPE html>
-<html lang="hi">
+<html>
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DETECTIVE KABIR: FINAL FIX</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>DETECTIVE KABIR: ULTIMATE</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #000; font-family: sans-serif; }
-        #overlay { position: fixed; width: 100%; height: 100%; background: rgba(0,0,0,0.9); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; color: white; }
-        #start-btn { padding: 15px 40px; font-size: 20px; cursor: pointer; background: #00f2ff; border: none; font-weight: bold; border-radius: 5px; }
-        #crosshair { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #fff; font-size: 20px; pointer-events: none; z-index: 100; display: none; }
-        .hud { position: fixed; bottom: 20px; left: 20px; color: #00f2ff; background: rgba(0,0,0,0.8); padding: 15px; border: 1px solid #00f2ff; z-index: 100; pointer-events: none; display: none; }
+        body { margin: 0; overflow: hidden; background: #000; font-family: 'Courier New', monospace; touch-action: none; }
+        #ui-layer { position: fixed; width: 100%; height: 100%; pointer-events: none; z-index: 10; color: white; }
+        .hud { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.7); padding: 10px; border: 1px solid #00f2ff; pointer-events: none; }
+        #crosshair { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-size: 20px; }
+        
+        /* Mobile/Touch Controls */
+        #controls { position: absolute; bottom: 20px; width: 100%; display: flex; justify-content: space-around; pointer-events: auto; }
+        .btn { width: 60px; height: 60px; background: rgba(255,255,255,0.2); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; user-select: none; border: 2px solid white; }
+        #start-screen { position: fixed; width: 100%; height: 100%; background: #000; z-index: 100; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+        #start-btn { padding: 20px 50px; font-size: 24px; color: white; background: #0088ff; border: none; cursor: pointer; border-radius: 10px; }
     </style>
 </head>
 <body>
 
-    <div id="overlay">
-        <h1>DETECTIVE KABIR</h1>
-        <p>Ghar ka raaz dhoondo...</p>
-        <button id="start-btn">KHEL SHURU KARO</button>
+    <div id="start-screen">
+        <h1 style="color:white">DETECTIVE KABIR</h1>
+        <button id="start-btn">KHEL SHURU KAREIN</button>
+        <p style="color:#888; margin-top:10px;">WASD or Buttons to Move | Mouse or Touch to Look</p>
     </div>
 
-    <div id="crosshair">+</div>
-    <div id="hud" class="hud">
-        [WASD] Chalna | [H] Interact<br>
-        Screen par Click karke movement active karein
+    <div id="ui-layer">
+        <div class="hud">
+            <b>CASE: SILENT HOUSE</b><br>
+            [H] Interact | [F] Torch<br>
+            Code: <span id="code-status">Dhoondo...</span>
+        </div>
+        <div id="crosshair">+</div>
+        <div id="controls">
+            <div class="btn" id="btn-w">W</div>
+            <div class="btn" id="btn-a">A</div>
+            <div class="btn" id="btn-s">S</div>
+            <div class="btn" id="btn-d">D</div>
+            <div class="btn" style="background:red" id="btn-h">H</div>
+        </div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
     <script>
-        let scene, camera, renderer, yaw = new THREE.Object3D();
-        let moveState = { f: 0, r: 0 };
-        let colliders = [];
+        let scene, camera, renderer, player, torch, flowerPot, door;
+        let move = { f: 0, r: 0 };
+        let colliders = [], hasCode = false, isExamining = false;
 
         function init() {
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x111111);
+            scene.fog = new THREE.Fog(0x111111, 2, 25);
+
             camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
-            yaw.add(camera);
-            scene.add(yaw);
-            yaw.position.set(0, 0, 5); // Thoda piche start karega
+            player = new THREE.Group();
+            player.add(camera);
+            scene.add(player);
+            player.position.set(0, 1.6, 8);
 
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
             document.body.appendChild(renderer.domElement);
 
-            // Bright Lights
-            const sun = new THREE.DirectionalLight(0xffffff, 1);
-            sun.position.set(5, 10, 5);
-            scene.add(sun);
-            scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+            // Lighting
+            const ambient = new THREE.AmbientLight(0xffffff, 0.4);
+            scene.add(ambient);
+            const light = new THREE.PointLight(0xffffff, 1.5, 20);
+            light.position.set(0, 4, -5);
+            scene.add(light);
 
             // Floor
-            const floor = new THREE.Mesh(new THREE.PlaneGeometry(50, 50), new THREE.MeshStandardMaterial({color: 0x333333}));
-            floor.rotation.x = -Math.PI/2; floor.position.y = -1;
+            const floor = new THREE.Mesh(new THREE.PlaneGeometry(50, 50), new THREE.MeshStandardMaterial({ color: 0x222222 }));
+            floor.rotation.x = -Math.PI/2;
+            floor.receiveShadow = true;
             scene.add(floor);
 
-            // Simple Walls for Testing Movement
-            createWall(0, 1, -10, 10, 5); // Samne wali deewar
+            // Room Architecture (Solid Walls)
+            createWall(0, 2, -10, 15, 5); // Back
+            createWall(-7.5, 2, 0, 20, 5, true); // Left
+            createWall(7.5, 2, 0, 20, 5, true); // Right
+
+            // The Mystery Door
+            door = new THREE.Mesh(new THREE.BoxGeometry(4, 6, 0.4), new THREE.MeshStandardMaterial({color: 0x4a2c16}));
+            door.position.set(0, 1, 0);
+            scene.add(door);
+            colliders.push(door);
+
+            // Table and Pot
+            const table = new THREE.Mesh(new THREE.BoxGeometry(3, 1, 1.5), new THREE.MeshStandardMaterial({color: 0x3d2b1f}));
+            table.position.set(0, -0.5, -6);
+            scene.add(table);
+            colliders.push(table);
+
+            flowerPot = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.2, 0.5), new THREE.MeshStandardMaterial({color: 0xcd853f}));
+            flowerPot.position.set(0, 0.2, -6);
+            scene.add(flowerPot);
 
             animate();
         }
 
-        function createWall(x, y, z, w, h) {
-            const wall = new THREE.Mesh(new THREE.BoxGeometry(w, h, 1), new THREE.MeshStandardMaterial({color: 0x888888}));
+        function createWall(x, y, z, w, h, rot=false) {
+            const wall = new THREE.Mesh(new THREE.BoxGeometry(rot?0.5:w, h, rot?w:0.5), new THREE.MeshStandardMaterial({color: 0x555555}));
             wall.position.set(x, y, z);
             scene.add(wall);
             colliders.push(wall);
         }
 
+        // Logic for Controls
+        const handleKeys = (key, val) => {
+            if(key === 'w') move.f = val;
+            if(key === 's') move.f = -val;
+            if(key === 'a') move.r = -val;
+            if(key === 'd') move.r = val;
+        };
+
+        window.addEventListener('keydown', (e) => handleKeys(e.key.toLowerCase(), 1));
+        window.addEventListener('keyup', (e) => handleKeys(e.key.toLowerCase(), 0));
+
+        // Start Button
         document.getElementById('start-btn').addEventListener('click', () => {
-            document.getElementById('overlay').style.display = 'none';
-            document.getElementById('crosshair').style.display = 'block';
-            document.getElementById('hud').style.display = 'block';
+            document.getElementById('start-screen').style.display = 'none';
             document.body.requestPointerLock();
             init();
         });
 
-        window.addEventListener('keydown', (e) => {
-            const k = e.key.toLowerCase();
-            if(k === 'w') moveState.f = 1;
-            if(k === 's') moveState.f = -1;
-            if(k === 'a') moveState.r = -1;
-            if(k === 'd') moveState.r = 1;
-        });
+        // Touch/Button Controls
+        const bindBtn = (id, k) => {
+            const el = document.getElementById(id);
+            el.addEventListener('pointerdown', () => handleKeys(k, 1));
+            el.addEventListener('pointerup', () => handleKeys(k, 0));
+        };
+        bindBtn('btn-w', 'w'); bindBtn('btn-s', 's'); bindBtn('btn-a', 'a'); bindBtn('btn-d', 'd');
+        document.getElementById('btn-h').addEventListener('click', interact);
 
-        window.addEventListener('keyup', (e) => {
-            const k = e.key.toLowerCase();
-            if(k === 'w' || k === 's') moveState.f = 0;
-            if(k === 'a' || k === 'd') moveState.r = 0;
-        });
-
-        document.addEventListener('pointermove', (e) => {
-            if (document.pointerLockElement) {
-                yaw.rotation.y -= e.movementX * 0.002;
+        function interact() {
+            if(player.position.distanceTo(flowerPot.position) < 3) {
+                hasCode = true;
+                document.getElementById('code-status').innerText = "1045 MIL GAYA!";
+                flowerPot.position.y = 2; // Pot uth gaya
             }
-        });
+            if(player.position.distanceTo(door.position) < 3 && hasCode) {
+                door.position.x = 5;
+                colliders = colliders.filter(c => c !== door);
+            }
+        }
 
         function animate() {
             requestAnimationFrame(animate);
-            if(moveState.f !== 0 || moveState.r !== 0) {
-                let speed = 0.15;
-                let dir = new THREE.Vector3(moveState.r, 0, -moveState.f).normalize().applyQuaternion(yaw.quaternion);
+            if(move.f !== 0 || move.r !== 0) {
+                let speed = 0.12;
+                let dir = new THREE.Vector3(move.r, 0, -move.f).normalize().applyQuaternion(player.quaternion);
+                let nextPos = player.position.clone().addScaledVector(dir, speed);
                 
-                // Simple Collision
-                let nextPos = yaw.position.clone().addScaledVector(dir, speed);
+                // Simple Collision Detection
                 let canMove = true;
                 for(let wall of colliders) {
-                    if(nextPos.distanceTo(wall.position) < 2) canMove = false;
+                    if (new THREE.Box3().setFromObject(wall).containsPoint(nextPos)) {
+                        canMove = false;
+                    }
                 }
-                if(canMove) yaw.position.copy(nextPos);
+                if(canMove) player.position.copy(nextPos);
             }
             renderer.render(scene, camera);
         }
+
+        document.addEventListener('pointermove', (e) => {
+            if(document.pointerLockElement) player.rotation.y -= e.movementX * 0.003;
+        });
     </script>
 </body>
 </html>
