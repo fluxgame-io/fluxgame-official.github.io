@@ -1,93 +1,137 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>KABIR 3D REALISM V2</title>
+    <title>DETECTIVE KABIR: PRO MOVEMENT</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #000; cursor: crosshair; }
-        #ui { position: fixed; bottom: 20px; left: 20px; color: #00f2ff; font-family: 'Courier New'; text-shadow: 2px 2px #000; }
+        body { margin: 0; overflow: hidden; background: #000; }
+        #overlay {
+            position: fixed; bottom: 20px; left: 20px; color: #00f2ff;
+            font-family: 'Courier New', monospace; font-size: 14px; pointer-events: none;
+        }
+        #crosshair {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            color: white; font-size: 20px; pointer-events: none; opacity: 0.5;
+        }
     </style>
 </head>
 <body>
-    <div id="ui">DETECTIVE KABIR: SEARCHING FOR EVIDENCE...</div>
+    <div id="crosshair">+</div>
+    <div id="overlay">
+        KABIR: SEARCHING FOR EVIDENCE...<br>
+        [W,A,S,D] CHALNA | [SHIFT] BHAGNA | [F] TORCH | [H] PICK OBJECT
+    </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
     <script>
-        let scene, camera, renderer, light, pivot;
+        let scene, camera, renderer, torch, ambientLight;
+        let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false, isRunning = false;
+        let velocity = new THREE.Vector3();
+        let torchOn = true;
 
-        // Start
         init();
 
         function init() {
             scene = new THREE.Scene();
-            camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
             
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.shadowMap.enabled = true; // Shadows on!
+            renderer.shadowMap.enabled = true;
             document.body.appendChild(renderer.domElement);
 
-            // 1. ASLI DEEWAREIN (Brick Texture Look)
-            const loader = new THREE.TextureLoader();
-            // Yahan hum ek gandi deewar ka texture simulate kar rahe hain
-            const wallMat = new THREE.MeshStandardMaterial({ 
-                color: 0x444444, 
-                roughness: 0.9, 
-                metalness: 0.1,
-                side: THREE.BackSide 
-            });
-            
-            const roomGeo = new THREE.BoxGeometry(20, 10, 30);
-            const room = new THREE.Mesh(roomGeo, wallMat);
-            room.receiveShadow = true;
-            scene.add(room);
+            // GROUND & WALLS (Ab thoda bada area)
+            const floorGeo = new THREE.PlaneGeometry(100, 100);
+            const wallMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 1 });
+            const floor = new THREE.Mesh(floorGeo, wallMat);
+            floor.rotation.x = -Math.PI / 2;
+            floor.position.y = -2;
+            floor.receiveShadow = true;
+            scene.add(floor);
 
-            // 2. OBSTACLES (Investigation ke liye cheezein)
-            const boxGeo = new THREE.BoxGeometry(2, 4, 2);
-            const boxMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
-            const box = new THREE.Mesh(boxGeo, boxMat);
-            box.position.set(0, -3, -10);
-            box.castShadow = true;
-            scene.add(box);
+            // BOXES (Objects to examine)
+            for(let i=0; i<5; i++) {
+                const box = new THREE.Mesh(new THREE.BoxGeometry(1, 2, 1), new THREE.MeshStandardMaterial({color: 0x333333}));
+                box.position.set(Math.random()*10 - 5, -1, -Math.random()*20);
+                box.castShadow = true;
+                scene.add(box);
+            }
 
-            // 3. THE REAL FLASHLIGHT
-            light = new THREE.SpotLight(0xffffff, 5); // Power badha di
-            light.position.set(0, 0, 0);
-            light.angle = Math.PI / 10; // Patli aur tez beam
-            light.penumbra = 0.4; // Realistic soft edges
-            light.decay = 2;
-            light.distance = 40;
-            light.castShadow = true;
-            
-            // Shadows thodi aur clear karne ke liye
-            light.shadow.mapSize.width = 1024;
-            light.shadow.mapSize.height = 1024;
+            // POWERFUL FLASHLIGHT (Intensity Badha di)
+            torch = new THREE.SpotLight(0xffffff, 15); // High Intensity
+            torch.angle = Math.PI / 8;
+            torch.penumbra = 0.5;
+            torch.decay = 1.5;
+            torch.distance = 50;
+            torch.castShadow = true;
+            scene.add(torch);
+            scene.add(torch.target);
 
-            scene.add(light);
-            scene.add(light.target);
+            // Halka sa ambient light (taaki bilkul zero visibility na ho)
+            ambientLight = new THREE.AmbientLight(0x050505); 
+            scene.add(ambientLight);
 
-            camera.position.z = 5;
+            camera.position.set(0, 0, 0);
 
-            // Move Light with Mouse
-            document.addEventListener('mousemove', (event) => {
-                let x = (event.clientX / window.innerWidth) * 2 - 1;
-                let y = -(event.clientY / window.innerHeight) * 2 + 1;
+            // CONTROLS
+            const onKeyDown = (e) => {
+                if (e.code === 'KeyW') moveForward = true;
+                if (e.code === 'KeyS') moveBackward = true;
+                if (e.code === 'KeyA') moveLeft = true;
+                if (e.code === 'KeyD') moveRight = true;
+                if (e.code === 'ShiftLeft') isRunning = true;
+                if (e.code === 'KeyF') toggleTorch();
+            };
+            const onKeyUp = (e) => {
+                if (e.code === 'KeyW') moveForward = false;
+                if (e.code === 'KeyS') moveBackward = false;
+                if (e.code === 'KeyA') moveLeft = false;
+                if (e.code === 'KeyD') moveRight = false;
+                if (e.code === 'ShiftLeft') isRunning = false;
+            };
+            document.addEventListener('keydown', onKeyDown);
+            document.addEventListener('keyup', onKeyUp);
+
+            // MOUSE LOOK
+            document.addEventListener('mousemove', (e) => {
+                camera.rotation.y -= e.movementX * 0.002;
+                camera.rotation.x -= e.movementY * 0.002;
                 
-                // Camera ko halka rotate karo (Bodycam feel)
-                camera.rotation.y = -x * 0.2;
-                camera.rotation.x = y * 0.2;
+                // Torch follows camera
+                torch.position.copy(camera.position);
+                let vector = new THREE.Vector3(0, 0, -1);
+                vector.applyQuaternion(camera.quaternion);
+                torch.target.position.copy(camera.position.clone().add(vector));
+            });
 
-                // Light target ko update karo
-                let targetPos = new THREE.Vector3(x * 10, y * 10, -20);
-                light.target.position.copy(targetPos);
+            // Lock Mouse for better control
+            document.addEventListener('click', () => {
+                document.body.requestPointerLock();
             });
 
             animate();
         }
 
+        function toggleTorch() {
+            torchOn = !torchOn;
+            torch.intensity = torchOn ? 15 : 0;
+        }
+
         function animate() {
             requestAnimationFrame(animate);
-            // Ambient light ekdam kam taaki andhera rahe
+
+            // MOVEMENT LOGIC
+            let speed = isRunning ? 0.15 : 0.07;
+            if (moveForward) camera.translateZ(-speed);
+            if (moveBackward) camera.translateZ(speed);
+            if (moveLeft) camera.translateX(-speed);
+            if (moveRight) camera.translateX(speed);
+
+            // Bodycam Bobbing (Walking feel)
+            if (moveForward || moveBackward || moveLeft || moveRight) {
+                camera.position.y = Math.sin(Date.now() * (isRunning ? 0.01 : 0.005)) * 0.1;
+            }
+
             renderer.render(scene, camera);
         }
     </script>
